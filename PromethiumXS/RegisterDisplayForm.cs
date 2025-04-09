@@ -137,7 +137,7 @@ namespace PromethiumXS
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
-                openFileDialog.Filter = "PASM files (*.pasm)|*.pasm|All files (*.*)|*.*";
+                openFileDialog.Filter = "PASM files (*.proasm)|*.proasm|All files (*.*)|*.*";
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
                     try
