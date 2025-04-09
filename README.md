@@ -6,7 +6,7 @@ PromethiumXS is a console that dose not exist this is an emulator for that conso
 #EXAMPLE CODE
 (this file is provided to you in the repo titled LABELTEST.PROASM)
 
-; Test PROASM file to validate labels, jumps, calls, and returns.
+```; Test PROASM file to validate labels, jumps, calls, and returns.
 START:
     MOV 10 R1          ; Set R1 = 10
     ADDI 5 R1          ; Add 5 to R1 (R1 = 15)
@@ -21,3 +21,4 @@ SUBROUTINE:
 END:
     HLT                ; Halt the program
 
+```
