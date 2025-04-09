@@ -1,5 +1,4 @@
 ; Test PASM file to validate labels, jumps, calls, and returns.
-; This program demonstrates basic arithmetic, jumps, and subroutine calls.
 
 START:
     MOV 10 R1          ; Set R1 = 10
