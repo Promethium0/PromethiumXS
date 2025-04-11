@@ -4,7 +4,7 @@ PromethiumXS is a console that dose not exist this is an emulator for that conso
 
 
 #EXAMPLE CODE
-(this file is provided to you in the repo titled LABELTEST.PROASM)
+
 
 ```; Test PROASM file to validate labels, jumps, calls, and returns.
 START:
