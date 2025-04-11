@@ -1,17 +1,20 @@
-
-; Test PROASM file to validate labels, jumps, calls, and returns.
-
+; test_display.proasm
+; Clear screen and draw a red triangle.
 
 START:
-    MOV 10 R1          ; Set R1 = 10
-    ADDI 5 R1          ; Add 5 to R1 (R1 = 15)
-    CALL SUBROUTINE ;call the subroutine function
-    JMP END            ; Jump to the END label
+    ; Clear the screen to black.
+    MOV 1 G0             ; Set opcode: Clear Screen.
+    MOV 0x000000FF G1    ; Set clear color to black (0xRRGGBBAA).
+    
+    ; Draw a red triangle.
+    MOV 5 G0             ; Set opcode: Draw Triangle.
+    MOV 100 G1           ; Vertex 1: X = 100.
+    MOV 100 G2           ; Vertex 1: Y = 100.
+    MOV 200 G3           ; Vertex 2: X = 200.
+    MOV 100 G4           ; Vertex 2: Y = 100.
+    MOV 150 G5           ; Vertex 3: X = 150.
+    MOV 200 G6           ; Vertex 3: Y = 200.
+    MOV 0xFF0000FF G7    ; Set triangle color to red (0xRRGGBBAA).
 
-SUBROUTINE:
-    ADDI 20 R1         ; Add 20 to R1 (R1 = R1 + 20)
-    MOV 5 R2           ; Set R2 = 5
-    RET                ; Return to the caller
-
-END:
-    HLT                ; Halt the program
+    ; Halt the program.
+    HLT

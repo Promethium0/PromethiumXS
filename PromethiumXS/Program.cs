@@ -1,24 +1,35 @@
+using System;
+using System.Threading;
+using System.Windows.Forms;
+using OpenTK.Mathematics;
+
 namespace PromethiumXS
 {
     internal static class Program
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
         [STAThread]
         static void Main()
         {
-            // Initialize the emulator components
+            // Step 1: Initialize the emulator components.
             PromethiumRegisters registers = new PromethiumRegisters();
             Memory memory = new Memory();
             Cpu cpu = new Cpu(memory, registers);
 
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
-            ApplicationConfiguration.Initialize();
+            // Step 2: Optionally, pre-fill graphics registers for testing.
+            // For example, clearing the screen to black:
+            registers.Graphics[0] = 1; // Clear screen opcode.
+            registers.Graphics[1] = 0x000000FF; // Black color (packed RGBA).
 
-            // Pass the required components to the RegisterDisplayForm constructor
-            Application.Run(new RegisterDisplayForm(registers, memory, cpu));
+            // Step 3: Launch the Windows Forms UI on a separate STA thread.
+            Thread winFormsThread = new Thread(() =>
+            {
+                // Initialize Windows Forms configuration (if any).
+                ApplicationConfiguration.Initialize();
+                Application.Run(new RegisterDisplayForm(registers, memory, cpu));
+            });
+            winFormsThread.SetApartmentState(ApartmentState.STA);
+            winFormsThread.Start();
+
         }
     }
 }

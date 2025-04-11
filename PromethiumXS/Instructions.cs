@@ -33,6 +33,7 @@
     JG = 0x15, // Jump if greater than
     JL = 0x16, // Jump if less than
 
+
     // Subroutine operations
     CALL = 0x17, // Call subroutine
     RET = 0x18, // Return from subroutine
@@ -50,17 +51,10 @@
     RAND = 0x1E, // Generate a random number into a register
     TIME = 0x1F, // Retrieve system time or tick count
 
-    // Advanced 3D Graphics instructions
-    GFX_BEGIN = 0x20, // Begin a 3D rendering session/frame
-    GFX_CLEAR = 0x21, // Clear the frame buffer (color & depth) for a new frame
-    GFX_SET_TRANS = 0x22, // Set/update the transformation matrix (model/view/projection)
-    GFX_DRAW_TRI = 0x23, // Draw a triangle using supplied vertex data
-    GFX_DRAW_QUAD = 0x24, // Draw a quadrilateral (can be split into two triangles)
-    GFX_LOAD_TEX = 0x25, // Load texture data from main memory to video memory
-    GFX_SET_LIGHT = 0x26, // Configure lighting (intensity, color, direction) for the scene
-    GFX_SET_CAM = 0x27, // Set camera parameters (position, orientation, field of view)
-    GFX_END = 0x28, // End the 3D rendering session (finalize the current frame)
-    GFX_SWAP = 0x29, // Swap the frame buffers to update the display with the new frame
+    //Interrupt
+    INT = 0x20, // Request an interrupt
+    IRET = 0x21, // Return from an interrupt
+    
 
     // Immediate operations
     ADDI = 0x30, // Add an immediate value to a register
@@ -76,5 +70,27 @@
     LI = 0x3A, // Load an immediate value directly into a register
     MODI = 0x3B, // Modulo operation with an immediate value
     LOADI = 0x3C, // Load a value from memory at an immediate offset
-    STOREI = 0x3D  // Store a value to memory at an immediate offset
+    STOREI = 0x3D,  // Store a value to memory at an immediate offset
+
+    //Other 
+    EI = 0x3E, // Enable interrupts
+    DI = 0x3F, // Disable interrupts
+    
 }
+
+public enum InterruptType : byte
+{
+
+    Keyboard = 0x01, // probably not used
+    Mouse = 0x02,// probably not used
+    Controller = 0x03 // used
+}
+public enum GpuOpcodes : byte
+{
+    NOP = 0x00,
+    LoadMicrocode = 0x01,
+    TransformVertex = 0x02,
+    DrawTriangle = 0x03,
+    
+}
+

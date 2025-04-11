@@ -33,20 +33,12 @@ namespace PromethiumXS
     public class PromethiumRegisters
     {
         /// <summary>
-        /// The 16 general-purpose registers (R0 - R15) used for arithmetic, logic, and control flow.
+        /// The 32 general-purpose registers (R0 - R31) used for arithmetic, logic, and control flow.
         /// </summary>
         public int[] GPR { get; private set; }
 
         /// <summary>
-        /// The 8 dedicated graphics registers (G0 - G7) used to hold data for 3D rendering.
-        /// For example:
-        ///  G0: Transformation matrix pointer or accumulator.
-        ///  G1: Camera parameters (position, orientation, field of view).
-        ///  G2: Texture pointer or texture control value.
-        ///  G3: Lighting parameters (intensity, color, direction).
-        ///  G4: Vertex buffer index or primitive counter.
-        ///  G5: Graphics pipeline status.
-        ///  G6-G7: Reserved for future graphics enhancements.
+       // 32 dedicated graphics registers (G0 - G31) used for graphics operations.
         /// </summary>
         public int[] Graphics { get; private set; }
 
@@ -65,8 +57,8 @@ namespace PromethiumXS
         /// </summary>
         public PromethiumRegisters()
         {
-            GPR = new int[16];        // 16 general-purpose registers.
-            Graphics = new int[8];      // 8 dedicated graphics registers.
+            GPR = new int[32];        // 32 general-purpose registers.
+            Graphics = new int[32];      // 32 dedicated graphics registers.
             CpuFlag = CpuFlags.None;    // Initialize all CPU flags as false.
             GraphicsFlag = GfxFlags.None; // Initialize graphics flags.
         }

@@ -8,4 +8,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="OpenTK" Version="4.9.4" />
+    <PackageReference Include="OpenTK.GLControl" Version="4.0.2" />
+  </ItemGroup>
+
 </Project>

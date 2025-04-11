@@ -129,6 +129,7 @@ namespace PromethiumXS
             switch (opcode)
             {
                 case PromethiumOpcode.NOP:
+                    // Do nothing.
                     break;
 
                 case PromethiumOpcode.MOV:
@@ -139,6 +140,12 @@ namespace PromethiumXS
                         {
                             Registers.GPR[destReg] = immediate;
                             Console.WriteLine($"[CPU] MOV: Set R{destReg} = {immediate}");
+                        }
+                        else if (destReg < Registers.GPR.Length + Registers.Graphics.Length)
+                        {
+                            int graphicsIndex = destReg - Registers.GPR.Length;
+                            Registers.Graphics[graphicsIndex] = immediate;
+                            Console.WriteLine($"[CPU] MOV: Set G{graphicsIndex} = {immediate}");
                         }
                         else
                         {
@@ -168,27 +175,6 @@ namespace PromethiumXS
                         break;
                     }
 
-                case PromethiumOpcode.SUB:
-                    {
-                        byte regDest = FetchByte();
-                        byte regSrc = FetchByte();
-                        if (regDest < Registers.GPR.Length && regSrc < Registers.GPR.Length)
-                        {
-                            int before = Registers.GPR[regDest];
-                            Registers.GPR[regDest] -= Registers.GPR[regSrc];
-                            Console.WriteLine($"[CPU] SUB: R{regDest} ({before}) - R{regSrc} ({Registers.GPR[regSrc]}) = {Registers.GPR[regDest]}");
-                            if (Registers.GPR[regDest] == 0)
-                                Registers.CpuFlag |= CpuFlags.Zero;
-                            else
-                                Registers.CpuFlag &= ~CpuFlags.Zero;
-                        }
-                        else
-                        {
-                            Console.WriteLine("[CPU] SUB: Invalid register indices.");
-                        }
-                        break;
-                    }
-
                 case PromethiumOpcode.ADDI:
                     {
                         byte regIndex = FetchByte();
@@ -203,72 +189,16 @@ namespace PromethiumXS
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
                         }
+                        else if (regIndex < Registers.GPR.Length + Registers.Graphics.Length)
+                        {
+                            int graphicsIndex = regIndex - Registers.GPR.Length;
+                            int before = Registers.Graphics[graphicsIndex];
+                            Registers.Graphics[graphicsIndex] += immValue;
+                            Console.WriteLine($"[CPU] ADDI: G{graphicsIndex} ({before}) + {immValue} = {Registers.Graphics[graphicsIndex]}");
+                        }
                         else
                         {
                             Console.WriteLine($"[CPU] ADDI: Invalid register index {regIndex}");
-                        }
-                        break;
-                    }
-
-                case PromethiumOpcode.SUBI:
-                    {
-                        byte regIndex = FetchByte();
-                        int immValue = FetchInt();
-                        if (regIndex < Registers.GPR.Length)
-                        {
-                            int before = Registers.GPR[regIndex];
-                            Registers.GPR[regIndex] -= immValue;
-                            Console.WriteLine($"[CPU] SUBI: R{regIndex} ({before}) - {immValue} = {Registers.GPR[regIndex]}");
-                            if (Registers.GPR[regIndex] == 0)
-                                Registers.CpuFlag |= CpuFlags.Zero;
-                            else
-                                Registers.CpuFlag &= ~CpuFlags.Zero;
-                        }
-                        else
-                        {
-                            Console.WriteLine($"[CPU] SUBI: Invalid register index {regIndex}");
-                        }
-                        break;
-                    }
-
-                case PromethiumOpcode.JMP:
-                    {
-                        int address = FetchInt();
-                        if (address >= 0 && address < (4 * 1024 * 1024))
-                        {
-                            Console.WriteLine($"[CPU] JMP: Jumping to address {address}");
-                            PC = address;
-                        }
-                        else
-                        {
-                            Console.WriteLine($"[CPU] JMP: Invalid jump address {address}");
-                        }
-                        break;
-                    }
-
-                case PromethiumOpcode.CALL:
-                    {
-                        int address = FetchInt();
-                        // Push the current PC onto our call stack.
-                        callStack.Add(PC);
-                        Console.WriteLine($"[CPU] CALL: Pushing return address {PC} and jumping to address {address}");
-                        PC = address;
-                        break;
-                    }
-
-                case PromethiumOpcode.RET:
-                    {
-                        if (callStack.Count > 0)
-                        {
-                            int retAddr = callStack[callStack.Count - 1];
-                            callStack.RemoveAt(callStack.Count - 1);
-                            Console.WriteLine($"[CPU] RET: Returning to address {retAddr}");
-                            PC = retAddr;
-                        }
-                        else
-                        {
-                            Console.WriteLine("[CPU] RET: Call stack empty. Halting.");
-                            Running = false;
                         }
                         break;
                     }
