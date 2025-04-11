@@ -5,43 +5,26 @@ using System.Linq;
 
 namespace PromethiumXS
 {
-    /// <summary>
-    /// Result object returned by the PASM loader, encapsulating the generated machine code and its size.
-    /// </summary>
     public class PasmResult
     {
         public byte[] ProgramBytes { get; set; }
-        public int ProgramSize => ProgramBytes.Length; // Auto-calculate size.
+        public int ProgramSize => ProgramBytes.Length;
     }
 
-    /// <summary>
-    /// A simple assembler for PASM files that supports labels and both general-purpose and graphics registers.
-    /// 
-    /// Registers are interpreted as follows:
-    ///   - General-purpose registers use the prefix "R" (e.g., R0, R1, ...).
-    ///   - Graphics registers use the prefix "G" (e.g., G0, G1, ...).
-    ///     The assembler converts a graphics register token into a register index by adding an offset.
-    ///     (For example, if there are 32 general registers, then G0 becomes index 32.)
-    /// 
-    /// Instructions that use immediates (MOV, ADDI, SUBI) and register-to-register instructions (ADD, SUB)
-    /// are assembled accordingly.
-    /// </summary>
     public static class PasmLoader
     {
-        // Number of general-purpose registers defined in PromethiumRegisters.
+        // Number of GPR registers (used when parsing register tokens).
         private const int GeneralRegisterCount = 32;
 
         /// <summary>
-        /// Assembles a PASM file into machine code, resolving labels and calculating program size.
+        /// Assembles a PASM file into machine code, resolving labels.
         /// </summary>
-        /// <param name="filePath">The path to the PASM file.</param>
-        /// <returns>A PasmResult containing the machine code and its size.</returns>
         public static PasmResult AssembleFile(string filePath)
         {
-            // Read all lines from the PASM file.
+            // Read all lines from the file.
             List<string> lines = File.ReadAllLines(filePath).ToList();
 
-            // First pass: collect labels.
+            // First pass: collect labels and calculate their addresses.
             Dictionary<string, int> labelTable = new Dictionary<string, int>();
             int currentAddress = 0;
             List<string> processedLines = new List<string>();
@@ -49,28 +32,31 @@ namespace PromethiumXS
             foreach (string line in lines)
             {
                 string trimmedLine = line.Trim();
-                if (string.IsNullOrEmpty(trimmedLine) || trimmedLine.StartsWith(";"))
-                    continue;
 
-                // If this is a label declaration (ends with a colon).
+                // Skip empty and comment lines.
+                if (string.IsNullOrEmpty(trimmedLine) ||
+                    trimmedLine.StartsWith(";") ||
+                    (trimmedLine.StartsWith(":") && !trimmedLine.EndsWith(":")))
+                {
+                    continue;
+                }
+
+                // If the line is a label declaration (ends with ':').
                 if (trimmedLine.EndsWith(":"))
                 {
                     string label = trimmedLine.Substring(0, trimmedLine.Length - 1);
                     labelTable[label] = currentAddress;
+                    Console.WriteLine($"[PASM Loader] Label '{label}' at address {currentAddress}");
                     continue;
                 }
 
-                // Otherwise, keep this line for the second pass.
+                // Keep the instruction; update the currentAddress based on its size.
                 processedLines.Add(trimmedLine);
-
-                // Determine the size of this instruction and update currentAddress.
-                string[] tokens = trimmedLine.Split(new char[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                string mnemonic = tokens[0].ToUpper();
-                int instSize = GetInstructionSize(mnemonic);
-                currentAddress += instSize;
+                string mnemonic = trimmedLine.Split()[0].ToUpper();
+                currentAddress += GetInstructionSize(mnemonic);
             }
 
-            // Second pass: generate machine code, resolving labels.
+            // Second pass: generate machine code.
             List<byte> programBytes = new List<byte>();
 
             foreach (string line in processedLines)
@@ -82,10 +68,9 @@ namespace PromethiumXS
                 string[] tokens = trimmedLine.Split(new char[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
                 string mnemonic = tokens[0].ToUpper();
 
-                // Parse the mnemonic into an opcode.
                 if (!Enum.TryParse<PromethiumOpcode>(mnemonic, out PromethiumOpcode opcode))
                 {
-                    Console.WriteLine($"Unknown mnemonic: {mnemonic}");
+                    Console.WriteLine($"[PASM Loader] Unknown mnemonic: {mnemonic}");
                     continue;
                 }
 
@@ -102,23 +87,35 @@ namespace PromethiumXS
                     case "MOV":
                     case "ADDI":
                     case "SUBI":
-                        // Immediate instructions: [opcode][register][immediate (4 bytes)].
+                    case "CMPI":
+                    case "LI":
+                        // Immediate instructions: [opcode][register (1 byte)][immediate (4 bytes)]
                         AddImmediateInstruction(tokens, programBytes);
                         break;
 
                     case "ADD":
                     case "SUB":
-                        // Register-to-register instructions: [opcode][destReg][sourceReg].
+                        // Register-to-register instructions: [opcode][destReg][srcReg]
                         AddRegisterInstruction(tokens, programBytes);
                         break;
 
                     case "JMP":
+                    case "JZ":
+                    case "JNZ":
+                    case "JE":
+                    case "JNE":
+                    case "JG":
+                    case "JL":
+                    case "JLE":
+                    case "JGE":
+                        
                     case "CALL":
-                        // Jump/call instructions: [opcode][address (4 bytes)].
+                        // Jump instructions: [opcode][address (4 bytes)]
                         AddLabelInstruction(tokens, labelTable, programBytes);
                         break;
 
                     default:
+                        Console.WriteLine($"[PASM Loader] Unhandled mnemonic: {mnemonic}");
                         break;
                 }
             }
@@ -126,6 +123,9 @@ namespace PromethiumXS
             return new PasmResult { ProgramBytes = programBytes.ToArray() };
         }
 
+        /// <summary>
+        /// Gets the size (in bytes) of an instruction based on its mnemonic.
+        /// </summary>
         private static int GetInstructionSize(string mnemonic)
         {
             switch (mnemonic)
@@ -137,34 +137,45 @@ namespace PromethiumXS
                 case "MOV":
                 case "ADDI":
                 case "SUBI":
-                    return 6; // [opcode][register][immediate (4 bytes)].
+                case "CMPI":
+                case "LI":
+                    return 6;  // [opcode][register(1)][immediate(4)]
                 case "ADD":
                 case "SUB":
-                    return 3; // [opcode][destReg][sourceReg].
+                    return 3;  // [opcode][destReg][srcReg]
                 case "JMP":
+                case "JZ":
+                case "JNZ":
+                case "JE":
+                case "JNE":
+                case "JG":
+                case "JL":
+                case "JLE":
+                case "JGE":
+
                 case "CALL":
-                    return 5; // [opcode][address (4 bytes)].
+                    return 5;  // [opcode][address(4)]
                 default:
-                    return 1; // Unknown instructions default to 1 byte.
+                    return 1;
             }
         }
 
         /// <summary>
-        /// Adds an immediate instruction. Expected format:
-        ///    [opcode] [immediate value] [register]
-        /// Supports both general-purpose (R) and graphics (G) registers.
+        /// Adds an immediate instruction.
+        /// PASM syntax: immediate value first, then the register.
+        /// CPU expects: [opcode][register][immediate]
         /// </summary>
         private static void AddImmediateInstruction(string[] tokens, List<byte> programBytes)
         {
             if (tokens.Length < 3)
             {
-                Console.WriteLine($"Invalid instruction: {string.Join(" ", tokens)}");
+                Console.WriteLine($"[PASM Loader] Invalid instruction: {string.Join(" ", tokens)}");
                 return;
             }
 
             if (!int.TryParse(tokens[1], out int immediate))
             {
-                Console.WriteLine($"Invalid immediate value: {tokens[1]}");
+                Console.WriteLine($"[PASM Loader] Invalid immediate value: {tokens[1]}");
                 immediate = 0;
             }
 
@@ -176,28 +187,26 @@ namespace PromethiumXS
 
         /// <summary>
         /// Adds a register-to-register instruction.
-        /// Expected format:
-        ///    [opcode] [destination register] [source register]
-        /// Supports both R and G registers.
+        /// Format: [opcode][destReg][srcReg]
         /// </summary>
         private static void AddRegisterInstruction(string[] tokens, List<byte> programBytes)
         {
             if (tokens.Length < 3)
             {
-                Console.WriteLine($"Invalid instruction: {string.Join(" ", tokens)}");
+                Console.WriteLine($"[PASM Loader] Invalid instruction: {string.Join(" ", tokens)}");
                 return;
             }
 
             byte destReg = ParseRegisterToken(tokens[1].ToUpper());
             byte srcReg = ParseRegisterToken(tokens[2].ToUpper());
-
             programBytes.Add(destReg);
             programBytes.Add(srcReg);
         }
 
         /// <summary>
-        /// Parses a register token. If the token starts with "R", it returns the general-purpose register index.
-        /// If it starts with "G", it returns the index offset by the number of general registers.
+        /// Parses a register token.
+        /// "R" tokens are returned as-is,
+        /// "G" tokens are offset by the number of general registers.
         /// </summary>
         private static byte ParseRegisterToken(string token)
         {
@@ -211,18 +220,19 @@ namespace PromethiumXS
                 if (int.TryParse(token.Substring(1), out int graphicsReg))
                     return (byte)(GeneralRegisterCount + graphicsReg);
             }
-            Console.WriteLine($"Invalid register token: {token}");
+
+            Console.WriteLine($"[PASM Loader] Invalid register token: {token}");
             return 0;
         }
 
         /// <summary>
-        /// Adds a label-based instruction (JMP, CALL).
+        /// Adds a label-based instruction (e.g., JMP or CALL).
         /// </summary>
         private static void AddLabelInstruction(string[] tokens, Dictionary<string, int> labelTable, List<byte> programBytes)
         {
             if (tokens.Length < 2)
             {
-                Console.WriteLine($"Invalid instruction: {string.Join(" ", tokens)}");
+                Console.WriteLine($"[PASM Loader] Invalid instruction: {string.Join(" ", tokens)}");
                 return;
             }
 
@@ -233,7 +243,7 @@ namespace PromethiumXS
             }
             else
             {
-                Console.WriteLine($"Label not found: {label}");
+                Console.WriteLine($"[PASM Loader] Label not found: {label}. Using address 0.");
                 programBytes.AddRange(BitConverter.GetBytes(0));
             }
         }

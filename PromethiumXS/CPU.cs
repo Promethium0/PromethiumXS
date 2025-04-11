@@ -1,31 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace PromethiumXS
 {
     public class Cpu
     {
-        /// <summary>
-        /// Program Counter: Points to the current instruction in the System memory domain.
-        /// </summary>
+        // Program Counter – holds the current instruction address.
         public int PC { get; private set; }
 
-        /// <summary>
-        /// The CPU’s register file.
-        /// </summary>
+        // The CPU register file.
         public PromethiumRegisters Registers { get; private set; }
-
-        /// <summary>
-        /// The Memory instance for PromethiumXS.
-        /// </summary>
+        // Reference to system memory.
         public Memory Memory { get; private set; }
-
-        /// <summary>
-        /// Indicates whether the CPU is running.
-        /// </summary>
+        // Running flag for the main loop.
         public bool Running { get; private set; }
 
-        // A simple call stack for storing return addresses.
+        // Simple call stack for subroutine calls.
         private List<int> callStack = new List<int>();
 
         public Cpu(Memory memory, PromethiumRegisters registers)
@@ -36,7 +27,7 @@ namespace PromethiumXS
         }
 
         /// <summary>
-        /// Resets the CPU state, including registers and the call stack.
+        /// Resets the CPU state: PC, registers, flags, and the call stack.
         /// </summary>
         public void Reset()
         {
@@ -61,8 +52,7 @@ namespace PromethiumXS
         }
 
         /// <summary>
-        /// Fetches a single byte from System memory and increments PC.
-        /// Halts execution if PC reaches beyond the loaded program.
+        /// Fetches a single byte from memory and increments PC.
         /// </summary>
         private byte FetchByte()
         {
@@ -72,13 +62,13 @@ namespace PromethiumXS
                 Running = false;
                 return 0;
             }
-            byte b = Memory.Read(MemoryDomain.System, PC);
+            byte value = Memory.Read(MemoryDomain.System, PC);
             PC++;
-            return b;
+            return value;
         }
 
         /// <summary>
-        /// Fetches a 32-bit integer (little-endian) from System memory and increments PC.
+        /// Fetches a 32-bit little–endian integer from memory and increments PC by 4.
         /// </summary>
         private int FetchInt()
         {
@@ -89,25 +79,25 @@ namespace PromethiumXS
                 return 0;
             }
             int value = Memory.Read(MemoryDomain.System, PC)
-                        | Memory.Read(MemoryDomain.System, PC + 1) << 8
-                        | Memory.Read(MemoryDomain.System, PC + 2) << 16
-                        | Memory.Read(MemoryDomain.System, PC + 3) << 24;
+                      | Memory.Read(MemoryDomain.System, PC + 1) << 8
+                      | Memory.Read(MemoryDomain.System, PC + 2) << 16
+                      | Memory.Read(MemoryDomain.System, PC + 3) << 24;
             PC += 4;
             return value;
         }
 
         /// <summary>
-        /// Runs the CPU until a HLT instruction or end-of-program is reached.
+        /// Executes instructions until a HLT is encountered or end–of–program is reached.
         /// </summary>
         public void Run()
         {
             while (Running && PC < Memory.ProgramSize)
             {
-
                 Step();
-                Thread.Sleep(500);
+                Thread.Sleep(500); // Slow execution for debugging.
             }
             Running = false;
+            Console.WriteLine("[CPU] Execution halted.");
         }
 
         /// <summary>
@@ -129,11 +119,11 @@ namespace PromethiumXS
             switch (opcode)
             {
                 case PromethiumOpcode.NOP:
-                    // Do nothing.
                     break;
 
                 case PromethiumOpcode.MOV:
                     {
+                        // Format: [opcode][dest register][immediate (4 bytes)]
                         byte destReg = FetchByte();
                         int immediate = FetchInt();
                         if (destReg < Registers.GPR.Length)
@@ -154,29 +144,9 @@ namespace PromethiumXS
                         break;
                     }
 
-                case PromethiumOpcode.ADD:
-                    {
-                        byte regDest = FetchByte();
-                        byte regSrc = FetchByte();
-                        if (regDest < Registers.GPR.Length && regSrc < Registers.GPR.Length)
-                        {
-                            int before = Registers.GPR[regDest];
-                            Registers.GPR[regDest] += Registers.GPR[regSrc];
-                            Console.WriteLine($"[CPU] ADD: R{regDest} ({before}) + R{regSrc} ({Registers.GPR[regSrc]}) = {Registers.GPR[regDest]}");
-                            if (Registers.GPR[regDest] == 0)
-                                Registers.CpuFlag |= CpuFlags.Zero;
-                            else
-                                Registers.CpuFlag &= ~CpuFlags.Zero;
-                        }
-                        else
-                        {
-                            Console.WriteLine("[CPU] ADD: Invalid register indices.");
-                        }
-                        break;
-                    }
-
                 case PromethiumOpcode.ADDI:
                     {
+                        // Format: [opcode][register][immediate (4 bytes)]
                         byte regIndex = FetchByte();
                         int immValue = FetchInt();
                         if (regIndex < Registers.GPR.Length)
@@ -184,6 +154,7 @@ namespace PromethiumXS
                             int before = Registers.GPR[regIndex];
                             Registers.GPR[regIndex] += immValue;
                             Console.WriteLine($"[CPU] ADDI: R{regIndex} ({before}) + {immValue} = {Registers.GPR[regIndex]}");
+
                             if (Registers.GPR[regIndex] == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
@@ -203,10 +174,112 @@ namespace PromethiumXS
                         break;
                     }
 
+                case PromethiumOpcode.SUBI:
+                    {
+                        // Format: [opcode][register][immediate (4 bytes)]
+                        byte regIndex = FetchByte();
+                        int immValue = FetchInt();
+                        if (regIndex < Registers.GPR.Length)
+                        {
+                            int before = Registers.GPR[regIndex];
+                            Registers.GPR[regIndex] -= immValue;
+                            Console.WriteLine($"[CPU] SUBI: R{regIndex} ({before}) - {immValue} = {Registers.GPR[regIndex]}");
+
+                            if (Registers.GPR[regIndex] == 0)
+                                Registers.CpuFlag |= CpuFlags.Zero;
+                            else
+                                Registers.CpuFlag &= ~CpuFlags.Zero;
+                        }
+                        else if (regIndex < Registers.GPR.Length + Registers.Graphics.Length)
+                        {
+                            int graphicsIndex = regIndex - Registers.GPR.Length;
+                            int before = Registers.Graphics[graphicsIndex];
+                            Registers.Graphics[graphicsIndex] -= immValue;
+                            Console.WriteLine($"[CPU] SUBI: G{graphicsIndex} ({before}) - {immValue} = {Registers.Graphics[graphicsIndex]}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] SUBI: Invalid register index {regIndex}");
+                        }
+                        break;
+                    }
+
+                case PromethiumOpcode.CMPI:
+                    {
+                        // Format: [opcode][register][immediate (4 bytes)]
+                        byte regIndex = FetchByte();
+                        int immValue = FetchInt();
+                        if (regIndex < Registers.GPR.Length)
+                        {
+                            if (Registers.GPR[regIndex] == immValue)
+                            {
+                                Registers.CpuFlag |= CpuFlags.Zero;
+                                Console.WriteLine($"[CPU] CMPI: R{regIndex} equals {immValue}");
+                            }
+                            else
+                            {
+                                Registers.CpuFlag &= ~CpuFlags.Zero;
+                                Console.WriteLine($"[CPU] CMPI: R{regIndex} does not equal {immValue}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] CMPI: Invalid register index {regIndex}");
+                        }
+                        break;
+                    }
+
+                case PromethiumOpcode.JMP:
+                    {
+                        // Format: [opcode][address (4 bytes)]
+                        int address = FetchInt();
+                        if (address >= 0 && address < Memory.ProgramSize)
+                        {
+                            Console.WriteLine($"[CPU] JMP: Jumping to address {address}");
+                            PC = address;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] JMP: Invalid address {address}. Halting execution.");
+                            Running = false;
+                        }
+                        break;
+                    }
+                case PromethiumOpcode.JNZ:
+                    {
+                        // Format: [opcode][address (4 bytes)]
+                        int address = FetchInt();
+                        if ((Registers.CpuFlag & CpuFlags.Zero) == 0)
+                        {
+                            Console.WriteLine($"[CPU] JNZ: Jumping to address {address}");
+                            PC = address;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] JNZ: Not jumping to address {address} (zero flag set).");
+                        }
+                        break;
+                    }
+                case PromethiumOpcode.JZ:
+                    {
+                        // Format: [opcode][address (4 bytes)]
+                        int address = FetchInt();
+                        if ((Registers.CpuFlag & CpuFlags.Zero) != 0)
+                        {
+                            Console.WriteLine($"[CPU] JZ: Jumping to address {address}");
+                            PC = address;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] JZ: Not jumping to address {address} (zero flag not set).");
+                        }
+                        break;
+                    }
+
                 case PromethiumOpcode.HLT:
                     {
-                        Running = false;
                         Console.WriteLine("[CPU] HLT encountered. Halting execution.");
+                        Running = false;
                         break;
                     }
 
