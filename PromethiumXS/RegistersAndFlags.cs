@@ -13,6 +13,12 @@ namespace PromethiumXS
         Carry = 0x02, // Set on arithmetic carry or borrow.
         Overflow = 0x04, // Set if an arithmetic overflow occurs.
         Negative = 0x08, // Set if the result is negative.
+        Greater= 0x10, // Set if the last comparison was greater than
+        Less = 0x20, // Set if the last comparison was less than
+        Equal = 0x40, // Set if the last comparison was equal
+        NotEqual = 0x80, // Set if the last comparison was not equal
+        GreaterOrEqual = Greater | Equal, // Set if the last comparison was greater than or equal to
+        LessOrEqual = Less | Equal, // Set if the last comparison was less than or equal to
     }
 
     /// <summary>

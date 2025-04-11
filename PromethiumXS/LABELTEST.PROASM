@@ -1,18 +1,38 @@
+; bitwise_test.proasm
+; -------------------
+; Test program for bitwise operations (AND, OR, XOR, NOT, SHL, SHR)
 
-MOV 5 R0
-START:
-	
-	MOV 2 R1
-	MOV 3 R2
-	MOV 4 R3
-	MOV 5 R4
-	SUBI 1 R0
-	JNZ START
-	JZ END
-	
+; --- Initialization ---
+MOV 0b10101010 R0   ; R0 = 0b10101010 (binary value 170)
+MOV 0b01010101 R1   ; R1 = 0b01010101 (binary value 85)
+MOV 0xF0 R2         ; R2 = 0xF0 (hexadecimal value 240)
 
-END:
-	MOV 5 R5
-	HLT
+; --- Bitwise AND ---
+AND R0 R1           ; R0 = R0 & R1 (should be 0b00000000)
+MOV R0 R3           ; Copy result of AND to R3 for debugging
 
-	
+; --- Bitwise OR ---
+OR R0 R2            ; R0 = R0 | R2 (should be 0b11110000)
+MOV R0 R4           ; Copy result of OR to R4 for debugging
+
+; --- Bitwise XOR ---
+XOR R1 R2           ; R1 = R1 ^ R2 (should be 0b10100101)
+MOV R1 R5           ; Copy result of XOR to R5 for debugging
+
+; --- Bitwise NOT ---
+NOT R2              ; R2 = ~R2 (should be 0b00001111 for 8-bit simulation)
+MOV R2 R6           ; Copy result of NOT to R6 for debugging
+
+; --- Logical Shift Left ---
+MOV 0b00001111 R7   ; R7 = 0b00001111 (binary value 15)
+SHL R7              ; R7 = R7 << 1 (should be 0b00011110)
+SHL R7              ; R7 = R7 << 1 (should be 0b00111100)
+
+; --- Logical Shift Right ---
+MOV 0b11110000 R8   ; R8 = 0b11110000 (binary value 240)
+SHR R8              ; R8 = R8 >> 1 (should be 0b01111000)
+SHR R8              ; R8 = R8 >> 1 (should be 0b00111100)
+
+; --- End Program ---
+MOV 0xFF R9         ; R9 = 0xFF (debug marker for successful termination)
+HLT

@@ -32,6 +32,9 @@
     JNE = 0x14, // Jump if not equal
     JG = 0x15, // Jump if greater than
     JL = 0x16, // Jump if less than
+    JGE = 0x50, // Jump if greater than or equal
+    JLE = 0x51, // Jump if less than or equal
+
 
 
     // Subroutine operations
@@ -85,7 +88,7 @@ public enum InterruptType : byte
 
     Keyboard = 0x01, // probably not used
     Mouse = 0x02,// probably not used
-    Controller = 0x03 // used
+    Controller = 0x03 // used (basically this enables the reciver to receive data from the controller and then you use the in and out instructions to get the data)
 }
 public enum GpuOpcodes : byte
 {

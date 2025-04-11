@@ -21,6 +21,7 @@ namespace PromethiumXS
     /// <summary>
     /// Represents the complete memory system for PromethiumXS.
     /// Divides 32 MB into 8 domains of 4 MB each.
+    /// Additionally, includes an internal stack for PUSH/POP operations.
     /// </summary>
     public class Memory
     {
@@ -36,6 +37,9 @@ namespace PromethiumXS
         /// Holds the size of the loaded program in the System domain.
         /// </summary>
         public int ProgramSize { get; set; } = 0;
+
+        // Internal stack used for PUSH and POP operations.
+        private Stack<int> stack = new Stack<int>();
 
         /// <summary>
         /// Initializes the memory system with 8 domains, each with 4 MB.
@@ -56,7 +60,7 @@ namespace PromethiumXS
         }
 
         /// <summary>
-        /// Reads a byte from the specified memory domain at a given offset.
+        /// Reads a byte from the specified memory domain at the given offset.
         /// </summary>
         public byte Read(MemoryDomain domain, int address)
         {
@@ -70,7 +74,7 @@ namespace PromethiumXS
         }
 
         /// <summary>
-        /// Writes a byte to the specified memory domain at a given offset.
+        /// Writes a byte to the specified memory domain at the given offset.
         /// </summary>
         public void Write(MemoryDomain domain, int address, byte value)
         {
@@ -85,6 +89,7 @@ namespace PromethiumXS
 
         /// <summary>
         /// Resets all memory domains by clearing their contents.
+        /// Also clears the program size and internal stack.
         /// </summary>
         public void Reset()
         {
@@ -93,6 +98,7 @@ namespace PromethiumXS
                 Array.Clear(Domains[domain], 0, DomainSize);
             }
             ProgramSize = 0;
+            stack.Clear();
         }
 
         /// <summary>
@@ -112,6 +118,29 @@ namespace PromethiumXS
                 string hex = BitConverter.ToString(data, i, count).Replace("-", " ");
                 Console.WriteLine($"{i:X8}: {hex}");
             }
+        }
+
+        /// <summary>
+        /// Pushes an integer value onto the internal stack.
+        /// </summary>
+        public void Push(int value)
+        {
+            stack.Push(value);
+            Console.WriteLine($"[Memory] Pushed value {value} onto the stack.");
+        }
+
+        /// <summary>
+        /// Pops an integer value from the internal stack.
+        /// </summary>
+        /// <returns>The integer value popped from the stack.</returns>
+        public int Pop()
+        {
+            if (stack.Count == 0)
+                throw new InvalidOperationException("[Memory] Stack underflow: No values to pop.");
+
+            int value = stack.Pop();
+            Console.WriteLine($"[Memory] Popped value {value} from the stack.");
+            return value;
         }
     }
 }
