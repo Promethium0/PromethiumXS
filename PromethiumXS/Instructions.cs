@@ -79,23 +79,47 @@
     EI = 0x3E, // Enable interrupts
     DI = 0x3F, // Disable interrupts
 
-    
-    
+    // Floating-point operations
+    FADD = 0x60,   // Floating-point addition
+    FSUB = 0x61,   // Floating-point subtraction
+    FMUL = 0x62,   // Floating-point multiplication
+    FDIV = 0x63,   // Floating-point division
+    FSQRT = 0x64,  // Square root
+    FSIN = 0x65,   // Sine function
+    FCOS = 0x66,   // Cosine function
+    FTAN = 0x67,   // Tangent function
+    MOVF = 0x68,  // Move float value between registers (easier than just adding that to mov)
+    FAND = 0x69,  // Floating-point AND
+    FOR = 0x6A,   // Floating-point OR
+    FXOR = 0x6B,  // Floating-point XOR
+    FNOT = 0x6C,  // Floating-point NOT
+    FSHL = 0x6D,  // Floating-point shift left
+    FSHR = 0x6E,  // Floating-point shift right
+    FCMPEQ = 0x6F, // Floating-point compare for equality 
+
+
+    //Conversion operations 
+    ITOF = 0xA0, // Convert Integer to Float
+    FTOI = 0xA1, // Convert Float to Integer
+
+
+
 }
 
 public enum InterruptType : byte
 {
 
     Keyboard = 0x01, // probably not used
-    Mouse = 0x02,// probably not used
+    Mouse = 0x02,// probably not used but if it was it would function the same the controller interrupt but for mouse inputs
     Controller = 0x03 // used (basically this enables the reciver to receive data from the controller and then you use the in and out instructions to get the data)
 }
 public enum GpuOpcodes : byte
 {
     NOP = 0x00,
     LoadMicrocode = 0x01,
-    TransformVertex = 0x02,
-    DrawTriangle = 0x03,
-    
+    DrawPixel = 0x02,
+    DrawTriangle = 0x10,
+    // draw triangle is basically all we need for now
+
 }
 

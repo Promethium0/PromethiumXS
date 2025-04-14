@@ -106,6 +106,27 @@ namespace PromethiumXS
                     case "STOREI":
                         AddImmediateInstruction(tokens, programBytes);
                         break;
+                    // Floating-point operations – format: [opcode][register (1 byte)][Float (4 bytes)]
+                    case "FADD":
+                    case "FSUB":
+                    case "FMUL":
+                    case "FDIV":
+                    case "FAND":
+                    case "FOR":
+                    case "FXOR":
+                    case "FSHL":
+                    case "FSHR":
+                    case "FSQRT":
+                    case "FSIN":
+                    case "FCOS":
+                    case "FTAN":
+                    case "FCMPEQ":
+                        AddFloatInstruction(tokens, programBytes);
+                        break;
+                    case "MOVF":
+                        AddFloatInstruction(tokens, programBytes);
+                        break;
+
 
                     // Register-to-register operations – format: [opcode][reg1][reg2]
                     case "ADD":
@@ -198,6 +219,12 @@ namespace PromethiumXS
                         }
                         break;
 
+                    case "ITOF":
+                        ConvertRegisterToFloat(programBytes, tokens[1]);
+                        break;
+                    case "FTOI":
+                        ConvertRegisterToInt(programBytes, tokens[1]);
+                        break;
                     default:
                         Console.WriteLine($"[PASM Loader] Unhandled mnemonic: {mnemonic}");
                         break;
@@ -219,7 +246,7 @@ namespace PromethiumXS
                     return 1;
                 case "MOV":
                     return 6; // [opcode][register][immediate (4 bytes)]
-
+                
                 // Memory operations
                 case "LOAD":
                 case "STORE":
@@ -301,12 +328,38 @@ namespace PromethiumXS
                 case "LOADI":
                 case "STOREI":
                     return 6; // [opcode][register][immediate (4 bytes)]
+                // Floating-point operations
+                case "FADD":
+                case "FSUB":
+                case "FMUL":
+                case "FDIV":
+                case "FSQRT":
+                case "FAND":
+                case "FOR":
+                case "FNOT":
+                case "FXOR":
+                case "FSIN":
+                case "FCOS":
+                case "FTAN":
+                case "FSHL":
+                case "FSHR":
+                    return 6; // [opcode][register][Float (4 bytes)]
+
+
+                case "MOVF":
+                    return 6; // [opcode][register][Float (4 bytes)]
+
+
 
                 // Other
                 case "EI":
                 case "DI":
                     return 1;
 
+                case "ITOF": // Int to Float 
+                    return 2; //return 2 because it targets a register
+                case "FTOI": // Float to Int just floors the register
+                    return 2; //return 2 because it targets a register 
                 default:
                     return 1;
             }
@@ -355,6 +408,62 @@ namespace PromethiumXS
             programBytes.Add(regByte);
             programBytes.AddRange(BitConverter.GetBytes(immediate));
         }
+
+        /// <summary>
+        /// Processes floating-point instructions and adds their binary representation to the program bytes.
+        /// </summary>
+        /// <param name="tokens">The instruction tokens (mnemonic and operands)</param>
+        /// <param name="programBytes">The list of program bytes to append to</param>
+        private static void AddFloatInstruction(string[] tokens, List<byte> programBytes)
+        {
+            // Expecting PASM syntax: MOVF <float> <register>
+            if (tokens.Length < 3)
+            {
+                Console.WriteLine($"[PASM Loader] Invalid MOVF instruction: {string.Join(" ", tokens)}");
+                return;
+            }
+
+            // Parse the float value using invariant culture.
+            if (!float.TryParse(tokens[1], System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out float floatValue))
+            {
+                Console.WriteLine($"[PASM Loader] Invalid float value: {tokens[1]}");
+                floatValue = 0f;
+            }
+
+            // Convert the float into 4 bytes in little-endian order.
+            byte[] floatBytes = BitConverter.GetBytes(floatValue);
+            if (!BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(floatBytes);
+            }
+            // CPU expects: [opcode][float (4 bytes)][register]
+            programBytes.AddRange(floatBytes);
+
+            // Now parse the register operand.
+            string regToken = tokens[2].ToUpper();
+            byte regByte = ParseRegisterToken(regToken);
+            programBytes.Add(regByte);
+        }
+
+        private static void ConvertRegisterToFloat(List<byte> programBytes, string regToken)
+        {
+            // ITOF converts an integer value in a register into a float.
+            // CPU expects the format: [opcode][register]
+            byte reg = ParseRegisterToken(regToken);
+            programBytes.Add(reg);
+            Console.WriteLine($"[PASM Loader] Converted register {regToken} to float (ITOF).");
+        }
+
+        private static void ConvertRegisterToInt(List<byte> programBytes, string regToken)
+        {
+            // FTOI converts a float value in a register into an integer (using floor).
+            // CPU expects the format: [opcode][register]
+            byte reg = ParseRegisterToken(regToken);
+            programBytes.Add(reg);
+            Console.WriteLine($"[PASM Loader] Converted register {regToken} to int (FTOI).");
+        }
+
 
 
 

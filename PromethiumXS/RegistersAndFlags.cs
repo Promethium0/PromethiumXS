@@ -13,7 +13,7 @@ namespace PromethiumXS
         Carry = 0x02, // Set on arithmetic carry or borrow.
         Overflow = 0x04, // Set if an arithmetic overflow occurs.
         Negative = 0x08, // Set if the result is negative.
-        Greater= 0x10, // Set if the last comparison was greater than
+        Greater = 0x10, // Set if the last comparison was greater than
         Less = 0x20, // Set if the last comparison was less than
         Equal = 0x40, // Set if the last comparison was equal
         NotEqual = 0x80, // Set if the last comparison was not equal
@@ -34,39 +34,79 @@ namespace PromethiumXS
     }
 
     /// <summary>
+    /// Indicates whether a register is being used as integer or float
+    /// </summary>
+    [Flags]
+    public enum RegisterType : byte
+    {
+        Integer = 0,
+        Float = 1
+    }
+
+    /// <summary>
+    /// Represents a register value that can be interpreted as either integer or float
+    /// </summary>
+    public class RegisterValue
+    {
+        private int _intValue;
+
+        // Integer value accessor
+        public int AsInt
+        {
+            get => _intValue;
+            set => _intValue = value;
+        }
+
+        // Float value accessor (using bit conversion)
+        public float AsFloat
+        {
+            get => BitConverter.ToSingle(BitConverter.GetBytes(_intValue), 0);
+            set => _intValue = BitConverter.ToInt32(BitConverter.GetBytes(value), 0);
+        }
+
+        // Constructors
+        public RegisterValue() { _intValue = 0; }
+        public RegisterValue(int value) { _intValue = value; }
+        public RegisterValue(float value) { AsFloat = value; }
+
+        public override string ToString()
+        {
+            return _intValue.ToString();
+        }
+    }
+
+    /// <summary>
     /// Contains the complete register set for the PromethiumXS console.
     /// </summary>
     public class PromethiumRegisters
     {
-        /// <summary>
-        /// The 32 general-purpose registers (R0 - R31) used for arithmetic, logic, and control flow.
-        /// </summary>
-        public int[] GPR { get; private set; }
+        public RegisterValue[] GPR { get; private set; }
+        public RegisterValue[] Graphics { get; private set; }
+        public RegisterType[] GPRType { get; private set; }
+        public RegisterType[] GraphicsType { get; private set; }
 
-        /// <summary>
-       // 32 dedicated graphics registers (G0 - G31) used for graphics operations.
-        /// </summary>
-        public int[] Graphics { get; private set; }
-
-        /// <summary>
-        /// The CPU flags register.
-        /// </summary>
         public CpuFlags CpuFlag { get; set; }
-
-        /// <summary>
-        /// The graphics flags register.
-        /// </summary>
         public GfxFlags GraphicsFlag { get; set; }
+
 
         /// <summary>
         /// Initializes a new instance of the PromethiumRegisters class with default values.
         /// </summary>
         public PromethiumRegisters()
         {
-            GPR = new int[32];        // 32 general-purpose registers.
-            Graphics = new int[32];      // 32 dedicated graphics registers.
-            CpuFlag = CpuFlags.None;    // Initialize all CPU flags as false.
-            GraphicsFlag = GfxFlags.None; // Initialize graphics flags.
+            GPR = new RegisterValue[32];
+            Graphics = new RegisterValue[32];
+            GPRType = new RegisterType[32];
+            GraphicsType = new RegisterType[32];
+
+            for (int i = 0; i < GPR.Length; i++)
+                GPR[i] = new RegisterValue();
+
+            for (int i = 0; i < Graphics.Length; i++)
+                Graphics[i] = new RegisterValue();
+
+            CpuFlag = CpuFlags.None;
+            GraphicsFlag = GfxFlags.None;
         }
 
         /// <summary>
@@ -74,8 +114,18 @@ namespace PromethiumXS
         /// </summary>
         public void Reset()
         {
-            Array.Clear(GPR, 0, GPR.Length);
-            Array.Clear(Graphics, 0, Graphics.Length);
+            for (int i = 0; i < GPR.Length; i++)
+            {
+                GPR[i] = new RegisterValue();
+                GPRType[i] = RegisterType.Integer; // Reset to Integer type
+            }
+
+            for (int i = 0; i < Graphics.Length; i++)
+            {
+                Graphics[i] = new RegisterValue();
+                GraphicsType[i] = RegisterType.Integer; // Reset to Integer type
+            }
+
             CpuFlag = CpuFlags.None;
             GraphicsFlag = GfxFlags.None;
         }
@@ -89,13 +139,19 @@ namespace PromethiumXS
             Console.WriteLine("General Purpose Registers:");
             for (int i = 0; i < GPR.Length; i++)
             {
-                Console.WriteLine($"R{i}: {GPR[i]}");
+                string value = GPRType[i] == RegisterType.Float ?
+                    GPR[i].AsFloat.ToString("F4") :
+                    GPR[i].AsInt.ToString();
+                Console.WriteLine($"R{i}: {value} ({GPRType[i]})");
             }
 
             Console.WriteLine("\nGraphics Registers:");
             for (int i = 0; i < Graphics.Length; i++)
             {
-                Console.WriteLine($"G{i}: {Graphics[i]}");
+                string value = GraphicsType[i] == RegisterType.Float ?
+                    Graphics[i].AsFloat.ToString("F4") :
+                    Graphics[i].AsInt.ToString();
+                Console.WriteLine($"G{i}: {value} ({GraphicsType[i]})");
             }
 
             Console.WriteLine("\nCPU Flags: " + CpuFlag);
@@ -103,3 +159,5 @@ namespace PromethiumXS
         }
     }
 }
+
+

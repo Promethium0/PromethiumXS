@@ -38,12 +38,12 @@ namespace PromethiumXS
             // Reset general-purpose registers.
             for (int i = 0; i < Registers.GPR.Length; i++)
             {
-                Registers.GPR[i] = 0;
+                Registers.GPR[i].AsInt = 0;
             }
             // Reset graphics registers.
             for (int i = 0; i < Registers.Graphics.Length; i++)
             {
-                Registers.Graphics[i] = 0;
+                Registers.Graphics[i].AsInt = 0;
             }
 
             // Clear flags.
@@ -84,6 +84,26 @@ namespace PromethiumXS
                       | Memory.Read(MemoryDomain.System, PC + 3) << 24;
             PC += 4;
             return value;
+        }
+
+        private float FetchFloat()
+        {
+            // Read 4 bytes from memory and convert to float
+            byte[] bytes = new byte[4];
+            for (int i = 0; i < 4; i++)
+            {
+                bytes[i] = (byte)Memory.Read(MemoryDomain.System, PC + i);
+            }
+            PC += 4;
+            // In your FetchFloat or similar method
+            if (!BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(bytes);
+            }
+
+
+            // Convert the bytes to a float (IEEE 754 format)
+            return BitConverter.ToSingle(bytes, 0);
         }
 
         /// <summary>
@@ -128,13 +148,13 @@ namespace PromethiumXS
                         int immediate = FetchInt();
                         if (destReg < Registers.GPR.Length)
                         {
-                            Registers.GPR[destReg] = immediate;
+                            Registers.GPR[destReg] = new RegisterValue(immediate);
                             Console.WriteLine($"[CPU] MOV: Set R{destReg} = {immediate}");
                         }
                         else if (destReg < Registers.GPR.Length + Registers.Graphics.Length)
                         {
                             int graphicsIndex = destReg - Registers.GPR.Length;
-                            Registers.Graphics[graphicsIndex] = immediate;
+                            Registers.Graphics[graphicsIndex] = new RegisterValue(immediate);
                             Console.WriteLine($"[CPU] MOV: Set G{graphicsIndex} = {immediate}");
                         }
                         else
@@ -150,21 +170,39 @@ namespace PromethiumXS
                         byte regIndex2 = FetchByte();
                         if (regIndex1 < Registers.GPR.Length && regIndex2 < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex1];
-                            Registers.GPR[regIndex1] += Registers.GPR[regIndex2];
-                            Console.WriteLine($"[CPU] ADD: R{regIndex1} ({before}) + R{regIndex2} = {Registers.GPR[regIndex1]}");
-                            if (Registers.GPR[regIndex1] == 0)
-                                Registers.CpuFlag |= CpuFlags.Zero;
+                            // Check if both registers are of float type.
+                            if (Registers.GPRType[regIndex1] == RegisterType.Float &&
+                                Registers.GPRType[regIndex2] == RegisterType.Float)
+                            {
+                                float before = Registers.GPR[regIndex1].AsFloat;
+                                Registers.GPR[regIndex1].AsFloat += Registers.GPR[regIndex2].AsFloat;
+                                Console.WriteLine($"[CPU] ADD (float): R{regIndex1} ({before}) + R{regIndex2} = {Registers.GPR[regIndex1]}");
+
+                                if (Registers.GPR[regIndex1].AsFloat == 0)
+                                    Registers.CpuFlag |= CpuFlags.Zero;
+                                else
+                                    Registers.CpuFlag &= ~CpuFlags.Zero;
+                            }
                             else
-                                Registers.CpuFlag &= ~CpuFlags.Zero;
+                            {
+                                // Default to integer addition.
+                                int before = Registers.GPR[regIndex1].AsInt;
+                                Registers.GPR[regIndex1].AsInt += Registers.GPR[regIndex2].AsInt;
+                                Console.WriteLine($"[CPU] ADD (int): R{regIndex1} ({before}) + R{regIndex2} = {Registers.GPR[regIndex1]}");
+
+                                if (Registers.GPR[regIndex1].AsInt == 0)
+                                    Registers.CpuFlag |= CpuFlags.Zero;
+                                else
+                                    Registers.CpuFlag &= ~CpuFlags.Zero;
+                            }
                         }
                         else if (regIndex1 < Registers.GPR.Length + Registers.Graphics.Length && regIndex2 < Registers.Graphics.Length)
                         {
                             int graphicsIndex1 = regIndex1 - Registers.GPR.Length;
                             int graphicsIndex2 = regIndex2 - Registers.Graphics.Length;
-                            int before = Registers.Graphics[graphicsIndex1];
-                            Registers.Graphics[graphicsIndex1] += Registers.Graphics[graphicsIndex2];
-                            Console.WriteLine($"[CPU] ADD: G{graphicsIndex1} ({before}) + G{graphicsIndex2} = {Registers.Graphics[graphicsIndex1]}");
+                            int before = Registers.Graphics[graphicsIndex1].AsInt;
+                            Registers.Graphics[graphicsIndex1].AsInt += Registers.Graphics[graphicsIndex2].AsInt;
+                            Console.WriteLine($"[CPU] ADD (graphics): G{graphicsIndex1} ({before}) + G{graphicsIndex2} = {Registers.Graphics[graphicsIndex1]}");
                         }
                         else
                         {
@@ -172,6 +210,7 @@ namespace PromethiumXS
                         }
                         break;
                     }
+
                 case PromethiumOpcode.SUB:
                     {
                         // Format: [opcode][register1][register2]
@@ -179,10 +218,10 @@ namespace PromethiumXS
                         byte regIndex2 = FetchByte();
                         if (regIndex1 < Registers.GPR.Length && regIndex2 < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex1];
-                            Registers.GPR[regIndex1] -= Registers.GPR[regIndex2];
+                            int before = Registers.GPR[regIndex1].AsInt;
+                            Registers.GPR[regIndex1].AsInt -= Registers.GPR[regIndex2].AsInt;
                             Console.WriteLine($"[CPU] SUB: R{regIndex1} ({before}) - R{regIndex2} = {Registers.GPR[regIndex1]}");
-                            if (Registers.GPR[regIndex1] == 0)
+                            if (Registers.GPR[regIndex1].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -191,8 +230,8 @@ namespace PromethiumXS
                         {
                             int graphicsIndex1 = regIndex1 - Registers.GPR.Length;
                             int graphicsIndex2 = regIndex2 - Registers.Graphics.Length;
-                            int before = Registers.Graphics[graphicsIndex1];
-                            Registers.Graphics[graphicsIndex1] -= Registers.Graphics[graphicsIndex2];
+                            int before = Registers.Graphics[graphicsIndex1].AsInt;
+                            Registers.Graphics[graphicsIndex1].AsInt -= Registers.Graphics[graphicsIndex2].AsInt;
                             Console.WriteLine($"[CPU] SUB: G{graphicsIndex1} ({before}) - G{graphicsIndex2} = {Registers.Graphics[graphicsIndex1]}");
                         }
                         else
@@ -208,10 +247,10 @@ namespace PromethiumXS
                         byte regIndex2 = FetchByte();
                         if (regIndex1 < Registers.GPR.Length && regIndex2 < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex1];
-                            Registers.GPR[regIndex1] *= Registers.GPR[regIndex2];
+                            int before = Registers.GPR[regIndex1].AsInt;
+                            Registers.GPR[regIndex1].AsInt *= Registers.GPR[regIndex2].AsInt;
                             Console.WriteLine($"[CPU] MUL: R{regIndex1} ({before}) * R{regIndex2} = {Registers.GPR[regIndex1]}");
-                            if (Registers.GPR[regIndex1] == 0)
+                            if (Registers.GPR[regIndex1].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -220,8 +259,8 @@ namespace PromethiumXS
                         {
                             int graphicsIndex1 = regIndex1 - Registers.GPR.Length;
                             int graphicsIndex2 = regIndex2 - Registers.Graphics.Length;
-                            int before = Registers.Graphics[graphicsIndex1];
-                            Registers.Graphics[graphicsIndex1] *= Registers.Graphics[graphicsIndex2];
+                            int before = Registers.Graphics[graphicsIndex1].AsInt;
+                            Registers.Graphics[graphicsIndex1].AsInt *= Registers.Graphics[graphicsIndex2].AsInt;
                             Console.WriteLine($"[CPU] MUL: G{graphicsIndex1} ({before}) * G{graphicsIndex2} = {Registers.Graphics[graphicsIndex1]}");
                         }
                         else
@@ -237,12 +276,12 @@ namespace PromethiumXS
                         byte regIndex2 = FetchByte();
                         if (regIndex1 < Registers.GPR.Length && regIndex2 < Registers.GPR.Length)
                         {
-                            if (Registers.GPR[regIndex2] != 0)
+                            if (Registers.GPR[regIndex2].AsInt != 0)
                             {
-                                int before = Registers.GPR[regIndex1];
-                                Registers.GPR[regIndex1] /= Registers.GPR[regIndex2];
+                                int before = Registers.GPR[regIndex1].AsInt;
+                                Registers.GPR[regIndex1].AsInt /= Registers.GPR[regIndex2].AsInt;
                                 Console.WriteLine($"[CPU] DIV: R{regIndex1} ({before}) / R{regIndex2} = {Registers.GPR[regIndex1]}");
-                                if (Registers.GPR[regIndex1] == 0)
+                                if (Registers.GPR[regIndex1].AsInt == 0)
                                     Registers.CpuFlag |= CpuFlags.Zero;
                                 else
                                     Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -256,8 +295,8 @@ namespace PromethiumXS
                         {
                             int graphicsIndex1 = regIndex1 - Registers.GPR.Length;
                             int graphicsIndex2 = regIndex2 - Registers.Graphics.Length;
-                            int before = Registers.Graphics[graphicsIndex1];
-                            Registers.Graphics[graphicsIndex1] /= Registers.Graphics[graphicsIndex2];
+                            int before = Registers.Graphics[graphicsIndex1].AsInt;
+                            Registers.Graphics[graphicsIndex1].AsInt /= Registers.Graphics[graphicsIndex2].AsInt;
                             Console.WriteLine($"[CPU] DIV: G{graphicsIndex1} ({before}) / G{graphicsIndex2} = {Registers.Graphics[graphicsIndex1]}");
                         }
                         else
@@ -273,10 +312,10 @@ namespace PromethiumXS
                         byte regIndex2 = FetchByte();
                         if (regIndex1 < Registers.GPR.Length && regIndex2 < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex1];
-                            Registers.GPR[regIndex1] &= Registers.GPR[regIndex2];
+                            int before = Registers.GPR[regIndex1].AsInt;
+                            Registers.GPR[regIndex1].AsInt &= Registers.GPR[regIndex2].AsInt;
                             Console.WriteLine($"[CPU] AND: R{regIndex1} ({before}) & R{regIndex2} = {Registers.GPR[regIndex1]}");
-                            if (Registers.GPR[regIndex1] == 0)
+                            if (Registers.GPR[regIndex1].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -285,8 +324,8 @@ namespace PromethiumXS
                         {
                             int graphicsIndex1 = regIndex1 - Registers.GPR.Length;
                             int graphicsIndex2 = regIndex2 - Registers.Graphics.Length;
-                            int before = Registers.Graphics[graphicsIndex1];
-                            Registers.Graphics[graphicsIndex1] &= Registers.Graphics[graphicsIndex2];
+                            int before = Registers.Graphics[graphicsIndex1].AsInt;
+                            Registers.Graphics[graphicsIndex1].AsInt &= Registers.Graphics[graphicsIndex2].AsInt;
                             Console.WriteLine($"[CPU] AND: G{graphicsIndex1} ({before}) & G{graphicsIndex2} = {Registers.Graphics[graphicsIndex1]}");
                         }
                         else
@@ -302,10 +341,10 @@ namespace PromethiumXS
                         byte regIndex2 = FetchByte();
                         if (regIndex1 < Registers.GPR.Length && regIndex2 < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex1];
-                            Registers.GPR[regIndex1] |= Registers.GPR[regIndex2];
+                            int before = Registers.GPR[regIndex1].AsInt;
+                            Registers.GPR[regIndex1].AsInt |= Registers.GPR[regIndex2].AsInt;
                             Console.WriteLine($"[CPU] OR: R{regIndex1} ({before}) | R{regIndex2} = {Registers.GPR[regIndex1]}");
-                            if (Registers.GPR[regIndex1] == 0)
+                            if (Registers.GPR[regIndex1].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -314,8 +353,8 @@ namespace PromethiumXS
                         {
                             int graphicsIndex1 = regIndex1 - Registers.GPR.Length;
                             int graphicsIndex2 = regIndex2 - Registers.Graphics.Length;
-                            int before = Registers.Graphics[graphicsIndex1];
-                            Registers.Graphics[graphicsIndex1] |= Registers.Graphics[graphicsIndex2];
+                            int before = Registers.Graphics[graphicsIndex1].AsInt;
+                            Registers.Graphics[graphicsIndex1].AsInt |= Registers.Graphics[graphicsIndex2].AsInt;
                             Console.WriteLine($"[CPU] OR: G{graphicsIndex1} ({before}) | G{graphicsIndex2} = {Registers.Graphics[graphicsIndex1]}");
                         }
                         else
@@ -331,10 +370,10 @@ namespace PromethiumXS
                         byte regIndex2 = FetchByte();
                         if (regIndex1 < Registers.GPR.Length && regIndex2 < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex1];
-                            Registers.GPR[regIndex1] ^= Registers.GPR[regIndex2];
+                            int before = Registers.GPR[regIndex1].AsInt;
+                            Registers.GPR[regIndex1].AsInt ^= Registers.GPR[regIndex2].AsInt;
                             Console.WriteLine($"[CPU] XOR: R{regIndex1} ({before}) ^ R{regIndex2} = {Registers.GPR[regIndex1]}");
-                            if (Registers.GPR[regIndex1] == 0)
+                            if (Registers.GPR[regIndex1].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -343,8 +382,8 @@ namespace PromethiumXS
                         {
                             int graphicsIndex1 = regIndex1 - Registers.GPR.Length;
                             int graphicsIndex2 = regIndex2 - Registers.Graphics.Length;
-                            int before = Registers.Graphics[graphicsIndex1];
-                            Registers.Graphics[graphicsIndex1] ^= Registers.Graphics[graphicsIndex2];
+                            int before = Registers.Graphics[graphicsIndex1].AsInt;
+                            Registers.Graphics[graphicsIndex1].AsInt ^= Registers.Graphics[graphicsIndex2].AsInt;
                             Console.WriteLine($"[CPU] XOR: G{graphicsIndex1} ({before}) ^ G{graphicsIndex2} = {Registers.Graphics[graphicsIndex1]}");
                         }
                         else
@@ -359,10 +398,11 @@ namespace PromethiumXS
                         byte regIndex = FetchByte();
                         if (regIndex < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex];
-                            Registers.GPR[regIndex] = ~Registers.GPR[regIndex];
+                            int before = Registers.GPR[regIndex].AsInt;
+                            Registers.GPR[regIndex].AsInt = ~Registers.GPR[regIndex].AsInt;
+
                             Console.WriteLine($"[CPU] NOT: R{regIndex} ({before}) = ~R{regIndex} = {Registers.GPR[regIndex]}");
-                            if (Registers.GPR[regIndex] == 0)
+                            if (Registers.GPR[regIndex].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -370,8 +410,8 @@ namespace PromethiumXS
                         else if (regIndex < Registers.GPR.Length + Registers.Graphics.Length)
                         {
                             int graphicsIndex = regIndex - Registers.GPR.Length;
-                            int before = Registers.Graphics[graphicsIndex];
-                            Registers.Graphics[graphicsIndex] = ~Registers.Graphics[graphicsIndex];
+                            int before = Registers.Graphics[graphicsIndex].AsInt;
+                            Registers.Graphics[graphicsIndex].AsInt = ~Registers.Graphics[graphicsIndex].AsInt;
                             Console.WriteLine($"[CPU] NOT: G{graphicsIndex} ({before}) = ~G{graphicsIndex} = {Registers.Graphics[graphicsIndex]}");
                         }
                         else
@@ -387,10 +427,10 @@ namespace PromethiumXS
                         int shiftAmount = FetchInt();
                         if (regIndex < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex];
-                            Registers.GPR[regIndex] <<= shiftAmount;
+                            int before = Registers.GPR[regIndex].AsInt;
+                            Registers.GPR[regIndex].AsInt <<= shiftAmount;
                             Console.WriteLine($"[CPU] SHL: R{regIndex} ({before}) << {shiftAmount} = {Registers.GPR[regIndex]}");
-                            if (Registers.GPR[regIndex] == 0)
+                            if (Registers.GPR[regIndex].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -398,8 +438,8 @@ namespace PromethiumXS
                         else if (regIndex < Registers.GPR.Length + Registers.Graphics.Length)
                         {
                             int graphicsIndex = regIndex - Registers.GPR.Length;
-                            int before = Registers.Graphics[graphicsIndex];
-                            Registers.Graphics[graphicsIndex] <<= shiftAmount;
+                            int before = Registers.Graphics[graphicsIndex].AsInt;
+                            Registers.Graphics[graphicsIndex].AsInt <<= shiftAmount;
                             Console.WriteLine($"[CPU] SHL: G{graphicsIndex} ({before}) << {shiftAmount} = {Registers.Graphics[graphicsIndex]}");
                         }
                         else
@@ -415,10 +455,10 @@ namespace PromethiumXS
                         int shiftAmount = FetchInt();
                         if (regIndex < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex];
-                            Registers.GPR[regIndex] >>= shiftAmount;
+                            int before = Registers.GPR[regIndex].AsInt;
+                            Registers.GPR[regIndex].AsInt >>= shiftAmount;
                             Console.WriteLine($"[CPU] SHR: R{regIndex} ({before}) >> {shiftAmount} = {Registers.GPR[regIndex]}");
-                            if (Registers.GPR[regIndex] == 0)
+                            if (Registers.GPR[regIndex].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -426,8 +466,8 @@ namespace PromethiumXS
                         else if (regIndex < Registers.GPR.Length + Registers.Graphics.Length)
                         {
                             int graphicsIndex = regIndex - Registers.GPR.Length;
-                            int before = Registers.Graphics[graphicsIndex];
-                            Registers.Graphics[graphicsIndex] >>= shiftAmount;
+                            int before = Registers.Graphics[graphicsIndex].AsInt;
+                            Registers.Graphics[graphicsIndex].AsInt >>= shiftAmount;
                             Console.WriteLine($"[CPU] SHR: G{graphicsIndex} ({before}) >> {shiftAmount} = {Registers.Graphics[graphicsIndex]}");
                         }
                         else
@@ -445,11 +485,11 @@ namespace PromethiumXS
                         int immValue = FetchInt();
                         if (regIndex < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex];
-                            Registers.GPR[regIndex] += immValue;
+                            int before = Registers.GPR[regIndex].AsInt;
+                            Registers.GPR[regIndex].AsInt += immValue;
                             Console.WriteLine($"[CPU] ADDI: R{regIndex} ({before}) + {immValue} = {Registers.GPR[regIndex]}");
 
-                            if (Registers.GPR[regIndex] == 0)
+                            if (Registers.GPR[regIndex].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -457,8 +497,8 @@ namespace PromethiumXS
                         else if (regIndex < Registers.GPR.Length + Registers.Graphics.Length)
                         {
                             int graphicsIndex = regIndex - Registers.GPR.Length;
-                            int before = Registers.Graphics[graphicsIndex];
-                            Registers.Graphics[graphicsIndex] += immValue;
+                            int before = Registers.Graphics[graphicsIndex].AsInt;
+                            Registers.Graphics[graphicsIndex].AsInt += immValue;
                             Console.WriteLine($"[CPU] ADDI: G{graphicsIndex} ({before}) + {immValue} = {Registers.Graphics[graphicsIndex]}");
                         }
                         else
@@ -475,11 +515,11 @@ namespace PromethiumXS
                         int immValue = FetchInt();
                         if (regIndex < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex];
-                            Registers.GPR[regIndex] -= immValue;
+                            int before = Registers.GPR[regIndex].AsInt;
+                            Registers.GPR[regIndex].AsInt -= immValue;
                             Console.WriteLine($"[CPU] SUBI: R{regIndex} ({before}) - {immValue} = {Registers.GPR[regIndex]}");
 
-                            if (Registers.GPR[regIndex] == 0)
+                            if (Registers.GPR[regIndex].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -487,8 +527,8 @@ namespace PromethiumXS
                         else if (regIndex < Registers.GPR.Length + Registers.Graphics.Length)
                         {
                             int graphicsIndex = regIndex - Registers.GPR.Length;
-                            int before = Registers.Graphics[graphicsIndex];
-                            Registers.Graphics[graphicsIndex] -= immValue;
+                            int before = Registers.Graphics[graphicsIndex].AsInt;
+                            Registers.Graphics[graphicsIndex].AsInt -= immValue;
                             Console.WriteLine($"[CPU] SUBI: G{graphicsIndex} ({before}) - {immValue} = {Registers.Graphics[graphicsIndex]}");
                         }
                         else
@@ -505,10 +545,10 @@ namespace PromethiumXS
                         int immValue = FetchInt();
                         if (regIndex < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex];
-                            Registers.GPR[regIndex] *= immValue;
+                            int before = Registers.GPR[regIndex].AsInt;
+                            Registers.GPR[regIndex].AsInt *= immValue;
                             Console.WriteLine($"[CPU] MULI: R{regIndex} ({before}) * {immValue} = {Registers.GPR[regIndex]}");
-                            if (Registers.GPR[regIndex] == 0)
+                            if (Registers.GPR[regIndex].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -516,8 +556,8 @@ namespace PromethiumXS
                         else if (regIndex < Registers.GPR.Length + Registers.Graphics.Length)
                         {
                             int graphicsIndex = regIndex - Registers.GPR.Length;
-                            int before = Registers.Graphics[graphicsIndex];
-                            Registers.Graphics[graphicsIndex] *= immValue;
+                            int before = Registers.Graphics[graphicsIndex].AsInt;
+                            Registers.Graphics[graphicsIndex].AsInt *= immValue;
                             Console.WriteLine($"[CPU] MULI: G{graphicsIndex} ({before}) * {immValue} = {Registers.Graphics[graphicsIndex]}");
                         }
                         else
@@ -535,10 +575,10 @@ namespace PromethiumXS
                         {
                             if (immValue != 0)
                             {
-                                int before = Registers.GPR[regIndex];
-                                Registers.GPR[regIndex] /= immValue;
+                                int before = Registers.GPR[regIndex].AsInt;
+                                Registers.GPR[regIndex].AsInt /= immValue;
                                 Console.WriteLine($"[CPU] DIVI: R{regIndex} ({before}) / {immValue} = {Registers.GPR[regIndex]}");
-                                if (Registers.GPR[regIndex] == 0)
+                                if (Registers.GPR[regIndex].AsInt == 0)
                                     Registers.CpuFlag |= CpuFlags.Zero;
                                 else
                                     Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -551,8 +591,8 @@ namespace PromethiumXS
                         else if (regIndex < Registers.GPR.Length + Registers.Graphics.Length)
                         {
                             int graphicsIndex = regIndex - Registers.GPR.Length;
-                            int before = Registers.Graphics[graphicsIndex];
-                            Registers.Graphics[graphicsIndex] /= immValue;
+                            int before = Registers.Graphics[graphicsIndex].AsInt;
+                            Registers.Graphics[graphicsIndex].AsInt /= immValue;
                             Console.WriteLine($"[CPU] DIVI: G{graphicsIndex} ({before}) / {immValue} = {Registers.Graphics[graphicsIndex]}");
                         }
                         else
@@ -568,10 +608,10 @@ namespace PromethiumXS
                         int immValue = FetchInt();
                         if (regIndex < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex];
-                            Registers.GPR[regIndex] &= immValue;
+                            int before = Registers.GPR[regIndex].AsInt;
+                            Registers.GPR[regIndex].AsInt &= immValue;
                             Console.WriteLine($"[CPU] ANDI: R{regIndex} ({before}) & {immValue} = {Registers.GPR[regIndex]}");
-                            if (Registers.GPR[regIndex] == 0)
+                            if (Registers.GPR[regIndex].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -579,8 +619,8 @@ namespace PromethiumXS
                         else if (regIndex < Registers.GPR.Length + Registers.Graphics.Length)
                         {
                             int graphicsIndex = regIndex - Registers.GPR.Length;
-                            int before = Registers.Graphics[graphicsIndex];
-                            Registers.Graphics[graphicsIndex] &= immValue;
+                            int before = Registers.Graphics[graphicsIndex].AsInt;
+                            Registers.Graphics[graphicsIndex].AsInt &= immValue;
                             Console.WriteLine($"[CPU] ANDI: G{graphicsIndex} ({before}) & {immValue} = {Registers.Graphics[graphicsIndex]}");
                         }
                         else
@@ -596,10 +636,10 @@ namespace PromethiumXS
                         int immValue = FetchInt();
                         if (regIndex < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex];
-                            Registers.GPR[regIndex] |= immValue;
+                            int before = Registers.GPR[regIndex].AsInt;
+                            Registers.GPR[regIndex].AsInt |= immValue;
                             Console.WriteLine($"[CPU] ORI: R{regIndex} ({before}) | {immValue} = {Registers.GPR[regIndex]}");
-                            if (Registers.GPR[regIndex] == 0)
+                            if (Registers.GPR[regIndex].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -607,8 +647,8 @@ namespace PromethiumXS
                         else if (regIndex < Registers.GPR.Length + Registers.Graphics.Length)
                         {
                             int graphicsIndex = regIndex - Registers.GPR.Length;
-                            int before = Registers.Graphics[graphicsIndex];
-                            Registers.Graphics[graphicsIndex] |= immValue;
+                            int before = Registers.Graphics[graphicsIndex].AsInt;
+                            Registers.Graphics[graphicsIndex].AsInt |= immValue;
                             Console.WriteLine($"[CPU] ORI: G{graphicsIndex} ({before}) | {immValue} = {Registers.Graphics[graphicsIndex]}");
                         }
                         else
@@ -624,10 +664,10 @@ namespace PromethiumXS
                         int immValue = FetchInt();
                         if (regIndex < Registers.GPR.Length)
                         {
-                            int before = Registers.GPR[regIndex];
-                            Registers.GPR[regIndex] ^= immValue;
+                            int before = Registers.GPR[regIndex].AsInt;
+                            Registers.GPR[regIndex].AsInt ^= immValue;
                             Console.WriteLine($"[CPU] XORI: R{regIndex} ({before}) ^ {immValue} = {Registers.GPR[regIndex]}");
-                            if (Registers.GPR[regIndex] == 0)
+                            if (Registers.GPR[regIndex].AsInt == 0)
                                 Registers.CpuFlag |= CpuFlags.Zero;
                             else
                                 Registers.CpuFlag &= ~CpuFlags.Zero;
@@ -635,8 +675,8 @@ namespace PromethiumXS
                         else if (regIndex < Registers.GPR.Length + Registers.Graphics.Length)
                         {
                             int graphicsIndex = regIndex - Registers.GPR.Length;
-                            int before = Registers.Graphics[graphicsIndex];
-                            Registers.Graphics[graphicsIndex] ^= immValue;
+                            int before = Registers.Graphics[graphicsIndex].AsInt;
+                            Registers.Graphics[graphicsIndex].AsInt ^= immValue;
                             Console.WriteLine($"[CPU] XORI: G{graphicsIndex} ({before}) ^ {immValue} = {Registers.Graphics[graphicsIndex]}");
                         }
                         else
@@ -654,7 +694,7 @@ namespace PromethiumXS
                         int immValue = FetchInt();
                         if (regIndex < Registers.GPR.Length)
                         {
-                            int diff = Registers.GPR[regIndex] - immValue;
+                            int diff = Registers.GPR[regIndex].AsInt - immValue;
 
                             // Clear all previous comparison flags.
                             Registers.CpuFlag &= ~(CpuFlags.Zero | CpuFlags.Greater | CpuFlags.Less | CpuFlags.GreaterOrEqual | CpuFlags.LessOrEqual);
@@ -689,8 +729,8 @@ namespace PromethiumXS
                         byte regIndex2 = FetchByte();
                         if (regIndex1 < Registers.GPR.Length && regIndex2 < Registers.GPR.Length)
                         {
-                            int val1 = Registers.GPR[regIndex1];
-                            int val2 = Registers.GPR[regIndex2];
+                            int val1 = Registers.GPR[regIndex1].AsInt;
+                            int val2 = Registers.GPR[regIndex2].AsInt;
                             int diff = val1 - val2;
 
                             // Clear previous comparison flags.
@@ -881,7 +921,7 @@ namespace PromethiumXS
                         byte regIndex = FetchByte();
                         if (regIndex < Registers.GPR.Length)
                         {
-                            int value = Registers.GPR[regIndex];
+                            int value = Registers.GPR[regIndex].AsInt;
                             Memory.Push(value);
                             Console.WriteLine($"[CPU] PUSH: Pushed R{regIndex} value {value} to stack.");
                         }
@@ -898,7 +938,7 @@ namespace PromethiumXS
                         if (regIndex < Registers.GPR.Length)
                         {
                             int value = Memory.Pop();
-                            Registers.GPR[regIndex] = value;
+                            Registers.GPR[regIndex].AsInt = value;
                             Console.WriteLine($"[CPU] POP: Popped value {value} from stack to R{regIndex}.");
                         }
                         else
@@ -933,7 +973,7 @@ namespace PromethiumXS
                         {
                             Random rand = new Random();
                             int randomValue = rand.Next(int.MinValue, int.MaxValue);
-                            Registers.GPR[regIndex] = randomValue;
+                            Registers.GPR[regIndex].AsInt = randomValue;
                             Console.WriteLine($"[CPU] RAND: Generated random value {randomValue} into R{regIndex}");
                         }
                         else
@@ -949,7 +989,7 @@ namespace PromethiumXS
                         if (regIndex < Registers.GPR.Length)
                         {
                             int currentTime = Environment.TickCount; // Get system tick count.
-                            Registers.GPR[regIndex] = currentTime;
+                            Registers.GPR[regIndex].AsFloat = currentTime;
                             Console.WriteLine($"[CPU] TIME: Current time {currentTime} into R{regIndex}");
                         }
                         else
@@ -981,6 +1021,65 @@ namespace PromethiumXS
                         Running = false;
                         break;
                     }
+                case PromethiumOpcode.MOVF:
+                    {
+                        // Format: [opcode][float value (4 bytes)][register]
+                        float floatValue = FetchFloat();
+                        byte regIndex = FetchByte();
+
+                        if (regIndex < Registers.GPR.Length)
+                        {
+                            Registers.GPR[regIndex].AsFloat = floatValue;
+                            Registers.GPRType[regIndex] = RegisterType.Float;
+                            Console.WriteLine($"[CPU] MOVF: Moved float value {floatValue} into R{regIndex}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] MOVF: Invalid register index {regIndex}");
+                        }
+                        break;
+                    }
+                case PromethiumOpcode.ITOF: //Converts a register whos type is a int into a float
+                    {
+                        // Format: [opcode][register]
+                        byte regIndex = FetchByte();
+                        if (regIndex < Registers.GPR.Length)
+                        {
+                            int intValue = Registers.GPR[regIndex].AsInt;
+                            float floatValue = (float)intValue;
+                            Registers.GPR[regIndex].AsFloat = floatValue;
+                            Registers.GPRType[regIndex] = RegisterType.Float;
+                            Console.WriteLine($"[CPU] ITOF: Converted int {intValue} from R{regIndex} to float {floatValue}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] ITOF: Invalid register index {regIndex}");
+                        }
+                        break;
+                    }
+
+                case PromethiumOpcode.FTOI: //Converts a register whos type is a float into a int
+                    {
+                        // Format: [opcode][register]
+                        byte regIndex = FetchByte();
+                        if (regIndex < Registers.GPR.Length)
+                        {
+                            float floatValue = Registers.GPR[regIndex].AsFloat;
+                            int intValue = (int)floatValue;
+                            Registers.GPR[regIndex].AsInt = intValue;
+                            Registers.GPRType[regIndex] = RegisterType.Integer;
+                            Console.WriteLine($"[CPU] FTOI: Converted float {floatValue} from R{regIndex} to int {intValue}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] FTOI: Invalid register index {regIndex}");
+                        }
+                        break;
+                    }
+
+
+
+
 
                 default:
                     {

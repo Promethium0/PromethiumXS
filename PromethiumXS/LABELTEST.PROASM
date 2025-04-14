@@ -1,38 +1,27 @@
-; bitwise_test.proasm
-; -------------------
-; Test program for bitwise operations (AND, OR, XOR, NOT, SHL, SHR)
+; Complex math program for PromethiumXS
+; Calculates factorial (in R2) and the sum of numbers from 1 to n (in R4)
+; n is stored in R1. The loop counter is in R3.
+;
+; Register usage:
+;   R1 : Input value n (e.g., 5)
+;   R2 : Factorial accumulator (initialized to 1)
+;   R3 : Loop counter (initialized to 1)
+;   R4 : Summation accumulator (initialized to 0)
+;
+; Program begins here.
+START:
+    MOV 5 R1         ; Set R1 = 5, the value to compute factorial and summation for.
+    MOV 1 R2         ; Initialize factorial accumulator R2 = 1.
+    MOV 0 R4         ; Initialize summation accumulator R4 = 0.
+    MOV 1 R3         ; Set loop counter R3 = 1.
 
-; --- Initialization ---
-MOV 0b10101010 R0   ; R0 = 0b10101010 (binary value 170)
-MOV 0b01010101 R1   ; R1 = 0b01010101 (binary value 85)
-MOV 0xF0 R2         ; R2 = 0xF0 (hexadecimal value 240)
+FAC_LOOP:
+    CMP R3 R1        ; Compare counter (R3) with n (R1).
+    JG FIN_FAC       ; If R3 > R1, jump to FIN_FAC.
+    MUL R2 R3        ; Multiply factorial accumulator by counter (R2 = R2 * R3).
+    ADD R4 R3        ; Add counter to summation accumulator (R4 = R4 + R3).
+    ADDI 1 R3        ; Increment counter (R3 = R3 + 1).
+    JMP FAC_LOOP     ; Repeat the loop.
 
-; --- Bitwise AND ---
-AND R0 R1           ; R0 = R0 & R1 (should be 0b00000000)
-MOV R0 R3           ; Copy result of AND to R3 for debugging
-
-; --- Bitwise OR ---
-OR R0 R2            ; R0 = R0 | R2 (should be 0b11110000)
-MOV R0 R4           ; Copy result of OR to R4 for debugging
-
-; --- Bitwise XOR ---
-XOR R1 R2           ; R1 = R1 ^ R2 (should be 0b10100101)
-MOV R1 R5           ; Copy result of XOR to R5 for debugging
-
-; --- Bitwise NOT ---
-NOT R2              ; R2 = ~R2 (should be 0b00001111 for 8-bit simulation)
-MOV R2 R6           ; Copy result of NOT to R6 for debugging
-
-; --- Logical Shift Left ---
-MOV 0b00001111 R7   ; R7 = 0b00001111 (binary value 15)
-SHL R7              ; R7 = R7 << 1 (should be 0b00011110)
-SHL R7              ; R7 = R7 << 1 (should be 0b00111100)
-
-; --- Logical Shift Right ---
-MOV 0b11110000 R8   ; R8 = 0b11110000 (binary value 240)
-SHR R8              ; R8 = R8 >> 1 (should be 0b01111000)
-SHR R8              ; R8 = R8 >> 1 (should be 0b00111100)
-
-; --- End Program ---
-MOV 0xFF R9         ; R9 = 0xFF (debug marker for successful termination)
-HLT
+FIN_FAC:
+    HLT              ; Halt execution.

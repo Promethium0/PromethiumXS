@@ -153,7 +153,7 @@ namespace PromethiumXS
                         PasmResult result = PasmLoader.AssembleFile(openFileDialog.FileName);
 
                         // Load the assembled program into System memory.
-                        for (int i = 0; i < result.ProgramSize && i < (4 * 1024 * 1024); i++)
+                        for (int i = 0; i < result.ProgramSize && i < (8 * 1024 * 1024); i++)
                         {
                             _memory.Domains[MemoryDomain.System][i] = result.ProgramBytes[i];
                         }
@@ -194,11 +194,21 @@ namespace PromethiumXS
         {
             dgvGPR.Rows.Clear();
             for (int i = 0; i < _registers.GPR.Length; i++)
-                dgvGPR.Rows.Add($"R{i}", _registers.GPR[i]);
+            {
+                string value = _registers.GPRType[i] == RegisterType.Float ?
+                    _registers.GPR[i].AsFloat.ToString("F4") :
+                    _registers.GPR[i].AsInt.ToString();
+                dgvGPR.Rows.Add($"R{i}", value);
+            }
 
             dgvGraphics.Rows.Clear();
             for (int i = 0; i < _registers.Graphics.Length; i++)
-                dgvGraphics.Rows.Add($"G{i}", _registers.Graphics[i]);
+            {
+                string value = _registers.GraphicsType[i] == RegisterType.Float ?
+                    _registers.Graphics[i].AsFloat.ToString("F4") :
+                    _registers.Graphics[i].AsInt.ToString();
+                dgvGraphics.Rows.Add($"G{i}", value);
+            }
 
             lblCpuFlags.Text = "CPU Flags: " + _registers.CpuFlag.ToString();
             lblGfxFlags.Text = "GFX Flags: " + _registers.GraphicsFlag.ToString();

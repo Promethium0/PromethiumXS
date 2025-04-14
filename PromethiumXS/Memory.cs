@@ -25,8 +25,8 @@ namespace PromethiumXS
     /// </summary>
     public class Memory
     {
-        // Total size for each domain: 4 MB (4 * 1024 * 1024 bytes).
-        private const int DomainSize = 4 * 1024 * 1024;
+        // Total size for each domain: 8 MB (8 * 1024 * 1024 bytes).
+        private const int DomainSize = 8 * 1024 * 1024;
 
         /// <summary>
         /// Gets the memory for each domain.
@@ -42,7 +42,7 @@ namespace PromethiumXS
         private Stack<int> stack = new Stack<int>();
 
         /// <summary>
-        /// Initializes the memory system with 8 domains, each with 4 MB.
+        /// Initializes the memory system with 8 domains, each with 8 MB.
         /// </summary>
         public Memory()
         {
