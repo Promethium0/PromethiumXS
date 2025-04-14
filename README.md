@@ -3,7 +3,7 @@
 PromethiumXS is a console that dose not exist this is an emulator for that console my goal right now is to get a full 3d game up and running im able to add to registers and jump to labels
 
 
-#EXAMPLE CODE
+# EXAMPLE CODE
 
 
 ```; Test PROASM file to validate labels, jumps, calls, and returns.
