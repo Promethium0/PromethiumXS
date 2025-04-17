@@ -1,27 +1,27 @@
-; Complex math program for PromethiumXS
-; Calculates factorial (in R2) and the sum of numbers from 1 to n (in R4)
-; n is stored in R1. The loop counter is in R3.
-;
-; Register usage:
-;   R1 : Input value n (e.g., 5)
-;   R2 : Factorial accumulator (initialized to 1)
-;   R3 : Loop counter (initialized to 1)
-;   R4 : Summation accumulator (initialized to 0)
-;
-; Program begins here.
-START:
-    MOV 5 R1         ; Set R1 = 5, the value to compute factorial and summation for.
-    MOV 1 R2         ; Initialize factorial accumulator R2 = 1.
-    MOV 0 R4         ; Initialize summation accumulator R4 = 0.
-    MOV 1 R3         ; Set loop counter R3 = 1.
 
-FAC_LOOP:
-    CMP R3 R1        ; Compare counter (R3) with n (R1).
-    JG FIN_FAC       ; If R3 > R1, jump to FIN_FAC.
-    MUL R2 R3        ; Multiply factorial accumulator by counter (R2 = R2 * R3).
-    ADD R4 R3        ; Add counter to summation accumulator (R4 = R4 + R3).
-    ADDI 1 R3        ; Increment counter (R3 = R3 + 1).
-    JMP FAC_LOOP     ; Repeat the loop.
+MOV 1 R0 ; Move 1 to register R0 (fixes an error)
+DLSTART Cube
+DLPRIMITIVE 1 
+DLCOLOR FFFFFF
+DLVERTEX 0.5 0.5 0.5
+DLVERTEX -0.5 0.5 0.5
+DLVERTEX -0.5 -0.5 0.5
+DLVERTEX 0.5 -0.5 0.5
+DLVERTEX 0.5 0.5 -0.5
+DLVERTEX -0.5 0.5 -0.5
+DLVERTEX -0.5 -0.5 -0.5
+DLVERTEX 0.5 -0.5 -0.5
+DLVERTEX 0.5 0.5 0.5
+DLVERTEX 0.5 -0.5 0.5
+DLVERTEX 0.5 -0.5 -0.5
+DLVERTEX 0.5 0.5 -0.5
+DLVERTEX 0.5 0.5 -0.5
+DLVERTEX -0.5 0.5 -0.5
+DLVERTEX -0.5 0.5 0.5
+DLEND
 
-FIN_FAC:
-    HLT              ; Halt execution.
+; Store the cube model in a register (e.g., R0)
+STOREMODEL G0 Cube
+
+; Optionally, call the cube model to render it at a specific position
+LOADMODEL G0 0.0 0.0 0.0 ; Render at (0, 0, 0)

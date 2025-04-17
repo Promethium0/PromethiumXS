@@ -5,13 +5,14 @@ namespace PromethiumXS
 {
     /// <summary>
     /// Memory domains for PromethiumXS. Each domain is 4 MB in size, totaling 32 MB.
+    /// its lazy but eh idrc
     /// </summary>
     public enum MemoryDomain
     {
         System,      // Main system RAM (used for code, data, etc.)
         Video,       // Video RAM (frame buffers, textures, etc.)
         Audio,       // Audio-specific memory for sound buffers and processing
-        BIOS,        // BIOS or firmware storage (read-only in practice)
+        DPL,        //Display list memory for graphics rendering
         Cartridge,   // Cartridge or expansion memory for game data
         IO,          // Input/Output memory mapped peripherals
         Cache,       // Cache memory for high-speed operations
@@ -51,7 +52,7 @@ namespace PromethiumXS
                 { MemoryDomain.System,    new byte[DomainSize] },
                 { MemoryDomain.Video,     new byte[DomainSize] },
                 { MemoryDomain.Audio,     new byte[DomainSize] },
-                { MemoryDomain.BIOS,      new byte[DomainSize] },
+                { MemoryDomain.DPL,      new byte[DomainSize] },
                 { MemoryDomain.Cartridge, new byte[DomainSize] },
                 { MemoryDomain.IO,        new byte[DomainSize] },
                 { MemoryDomain.Cache,     new byte[DomainSize] },

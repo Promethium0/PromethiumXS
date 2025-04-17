@@ -1,4 +1,6 @@
-﻿public enum PromethiumOpcode : byte
+﻿using System.Windows.Forms;
+
+public enum PromethiumOpcode : byte
 {
     // Basic operations
     NOP = 0x00, // No Operation
@@ -79,7 +81,7 @@
     EI = 0x3E, // Enable interrupts
     DI = 0x3F, // Disable interrupts
 
-    // Floating-point operations
+    // Floating-point operations (these are also used for the gpu!)
     FADD = 0x60,   // Floating-point addition
     FSUB = 0x61,   // Floating-point subtraction
     FMUL = 0x62,   // Floating-point multiplication
@@ -95,14 +97,28 @@
     FNOT = 0x6C,  // Floating-point NOT
     FSHL = 0x6D,  // Floating-point shift left
     FSHR = 0x6E,  // Floating-point shift right
-    FCMPEQ = 0x6F, // Floating-point compare for equality 
+    FMOD = 0x6F,  // Floating-point modulo
+
+
+
+
 
 
     //Conversion operations 
     ITOF = 0xA0, // Convert Integer to Float
     FTOI = 0xA1, // Convert Float to Integer
 
+    //Display lists
+    DLSTART = 0xB0, // Start Display List
+    DLEND = 0xB1, // End Display List
+    DLCALL = 0xB2, // Call Display List
+    DLVERTEX = 0xB3, // add vertex to dl
+    DLCOLOR = 0xB4, // set color for verticies
+    DLPRIMITIVE = 0xB5, // define primitive type
+    //for moving models loaded in you use either the float instructions immediate instructions or just the normal register instructions the display list will be loaded into a gfx register
 
+    STOREMODEL = 0xC0,
+    LOADMODEL = 0xC1,
 
 }
 
@@ -113,13 +129,38 @@ public enum InterruptType : byte
     Mouse = 0x02,// probably not used but if it was it would function the same the controller interrupt but for mouse inputs
     Controller = 0x03 // used (basically this enables the reciver to receive data from the controller and then you use the in and out instructions to get the data)
 }
-public enum GpuOpcodes : byte
+
+
+
+public enum INOUTType : byte //these are commands sent to and from the controller 
 {
-    NOP = 0x00,
-    LoadMicrocode = 0x01,
-    DrawPixel = 0x02,
-    DrawTriangle = 0x10,
-    // draw triangle is basically all we need for now
+    
+    INPUT_RECEIVED = 0x01, // tells the controller that the input it provided was received
+    INPUT_NOT_RECEIVED = 0x02, // tells the controller that the input it provided was not received (should probably never happen but if it does it will be used)
+    LEFT_STICK_UP = 0x03, // when the left stick is moved up this triggers
+    LEFT_STICK_DOWN = 0x04, // when the left stick is moved down this triggers
+    LEFT_STICK_LEFT = 0x05, // when the left stick is moved left this triggers
+    LEFT_STICK_RIGHT = 0x06, // when the left stick is moved right this triggers
+    RIGHT_STICK_UP = 0x07, // when the right stick is moved up this triggers
+    RIGHT_STICK_DOWN = 0x08, // when the right stick is moved down this triggers
+    RIGHT_STICK_LEFT = 0x09, // when the right stick is moved left this triggers
+    RIGHT_STICK_RIGHT = 0x0A, // when the right stick is moved right this triggers
+    LEFT_TRIGGER = 0x0B, // when the left trigger is pressed this triggers
+    RIGHT_TRIGGER = 0x0C, // when the right trigger is pressed this triggers
+    A_BUTTON = 0x0D, // when the A button is pressed this triggers
+    B_BUTTON = 0x0E, // when the B button is pressed this triggers
+    X_BUTTON = 0x0F, // when the X button is pressed this triggers
+    Y_BUTTON = 0x10, // when the Y button is pressed this triggers
+    START_BUTTON = 0x11, // when the start button is pressed this triggers
+    SELECT_BUTTON = 0x12, // when the select button is pressed this triggers
+
+
 
 }
 
+
+
+/// <summary>
+/// so for controller inputs the in and out commands work like this IN (lets say we use the a button) A_BUTTON then we press enter and then we have a JE jump to a function
+/// however if the a button is not pressed it dosent jump to the function and instead just continues on to the next instruction
+/// or it dose a JNE jump to a function if the a button is not pressed

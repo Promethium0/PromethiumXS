@@ -2,6 +2,10 @@
 using System.Drawing;
 using System.Windows.Forms;
 
+
+
+
+
 namespace PromethiumXS
 {
     public partial class RegisterDisplayForm : Form
@@ -17,15 +21,19 @@ namespace PromethiumXS
         private Button btnRefresh;
         private Button btnLoadPasm;
         private Button btnStart;
+        private DisplayListManager _displayListManager;
 
-        // Removed GLControl from the form to avoid GLFW calls on a background thread.
-        private Panel displayPlaceholder;
 
-        public RegisterDisplayForm(PromethiumRegisters registers, Memory memory, Cpu cpu)
+
+        private Renderer3D renderer3D;
+
+        public RegisterDisplayForm(PromethiumRegisters registers, Memory memory, Cpu cpu, DisplayListManager displayListManager)
         {
             _registers = registers;
             _memory = memory;
             _cpu = cpu;
+            _displayListManager = displayListManager;
+
             InitializeComponents();
         }
 
@@ -113,14 +121,7 @@ namespace PromethiumXS
             };
             btnStart.Click += BtnStart_Click;
 
-            // Placeholder Panel for the 3D display.
-            // This panel acts as a visual placeholder only.
-            displayPlaceholder = new Panel
-            {
-                Location = new Point(10, 450),
-                Size = new Size(860, 200),
-                BackColor = Color.CornflowerBlue // Indicates the area reserved for 3D rendering.
-            };
+            
 
             // Add controls to the form.
             this.Controls.Add(dgvGPR);
@@ -130,7 +131,6 @@ namespace PromethiumXS
             this.Controls.Add(btnRefresh);
             this.Controls.Add(btnLoadPasm);
             this.Controls.Add(btnStart);
-            this.Controls.Add(displayPlaceholder);
 
             // Initial display.
             RefreshDisplay();
@@ -150,10 +150,11 @@ namespace PromethiumXS
                 {
                     try
                     {
+                        // Pass _displayListManager to AssembleFile
                         PasmResult result = PasmLoader.AssembleFile(openFileDialog.FileName);
 
                         // Load the assembled program into System memory.
-                        for (int i = 0; i < result.ProgramSize && i < (8 * 1024 * 1024); i++)
+                        for (int i = 0; i < result.ProgramSize && i < (4 * 1024 * 1024); i++)
                         {
                             _memory.Domains[MemoryDomain.System][i] = result.ProgramBytes[i];
                         }
@@ -174,21 +175,32 @@ namespace PromethiumXS
             }
         }
 
+
         private async void BtnStart_Click(object sender, EventArgs e)
         {
             btnStart.Enabled = false;
+
+            // Update the instantiation of Renderer3DForm to include the required 'memory' parameter.
+            Renderer3DForm rendererForm = new Renderer3DForm(_displayListManager, _memory);
+            rendererForm.Show();
+
             await System.Threading.Tasks.Task.Run(() =>
             {
                 while (_cpu.Running)
                 {
                     _cpu.Step();
-                    System.Threading.Thread.Sleep(500);
+                    
+
+                    // Refresh the display and update the renderer form.
                     this.Invoke(new Action(RefreshDisplay));
+                    rendererForm.Invoke(new Action(rendererForm.Refresh));
                 }
             });
+
             MessageBox.Show("Program execution halted.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
             btnStart.Enabled = true;
         }
+
 
         private void RefreshDisplay()
         {
@@ -204,9 +216,11 @@ namespace PromethiumXS
             dgvGraphics.Rows.Clear();
             for (int i = 0; i < _registers.Graphics.Length; i++)
             {
-                string value = _registers.GraphicsType[i] == RegisterType.Float ?
-                    _registers.Graphics[i].AsFloat.ToString("F4") :
-                    _registers.Graphics[i].AsInt.ToString();
+                string value = _registers.GraphicsType[i] == RegisterType.Model ?
+                    _registers.Graphics[i].AsModel :
+                    (_registers.GraphicsType[i] == RegisterType.Float ?
+                        _registers.Graphics[i].AsFloat.ToString("F4") :
+                        _registers.Graphics[i].AsInt.ToString());
                 dgvGraphics.Rows.Add($"G{i}", value);
             }
 

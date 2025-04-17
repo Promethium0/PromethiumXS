@@ -34,13 +34,14 @@ namespace PromethiumXS
     }
 
     /// <summary>
-    /// Indicates whether a register is being used as integer or float
+    /// Indicates whether a register is being used as integer, float, or model
     /// </summary>
     [Flags]
     public enum RegisterType : byte
     {
         Integer = 0,
-        Float = 1
+        Float = 1,
+        Model = 2 // New type for storing model names
     }
 
     /// <summary>
@@ -64,13 +65,19 @@ namespace PromethiumXS
             set => _intValue = BitConverter.ToInt32(BitConverter.GetBytes(value), 0);
         }
 
+        // Model name accessor (for storing display list references)
+        public string AsModel { get; set; }
+
         // Constructors
         public RegisterValue() { _intValue = 0; }
         public RegisterValue(int value) { _intValue = value; }
         public RegisterValue(float value) { AsFloat = value; }
+        public RegisterValue(string modelName) { AsModel = modelName; }
 
         public override string ToString()
         {
+            if (AsModel != null)
+                return AsModel; // Return the model name if set
             return _intValue.ToString();
         }
     }
@@ -84,6 +91,8 @@ namespace PromethiumXS
         public RegisterValue[] Graphics { get; private set; }
         public RegisterType[] GPRType { get; private set; }
         public RegisterType[] GraphicsType { get; private set; }
+
+
 
         public CpuFlags CpuFlag { get; set; }
         public GfxFlags GraphicsFlag { get; set; }
@@ -129,6 +138,7 @@ namespace PromethiumXS
             CpuFlag = CpuFlags.None;
             GraphicsFlag = GfxFlags.None;
         }
+
 
         /// <summary>
         /// Dumps the current state of all registers and flags to the console (for debugging purposes).

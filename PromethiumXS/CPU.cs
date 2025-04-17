@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
-
+using PromethiumXS;
 namespace PromethiumXS
 {
+
+
+    
     public class Cpu
     {
         // Program Counter – holds the current instruction address.
@@ -19,10 +23,24 @@ namespace PromethiumXS
         // Simple call stack for subroutine calls.
         private List<int> callStack = new List<int>();
 
+        private DisplayListManager _displayListManager;
+        public DisplayListManager DisplayListManager => _displayListManager;
+
+        private int _nextDplAddress = 0;
+
+
+
+
+
+
+
         public Cpu(Memory memory, PromethiumRegisters registers)
         {
             Memory = memory;
             Registers = registers;
+            _displayListManager = new DisplayListManager(); // Initialize the DisplayListManager
+
+
             Reset();
         }
 
@@ -114,7 +132,7 @@ namespace PromethiumXS
             while (Running && PC < Memory.ProgramSize)
             {
                 Step();
-                Thread.Sleep(500); // Slow execution for debugging.
+                
             }
             Running = false;
             Console.WriteLine("[CPU] Execution halted.");
@@ -144,8 +162,9 @@ namespace PromethiumXS
                 case PromethiumOpcode.MOV:
                     {
                         // Format: [opcode][dest register][immediate (4 bytes)]
-                        byte destReg = FetchByte();
                         int immediate = FetchInt();
+                        byte destReg = FetchByte();
+
                         if (destReg < Registers.GPR.Length)
                         {
                             Registers.GPR[destReg] = new RegisterValue(immediate);
@@ -1076,6 +1095,354 @@ namespace PromethiumXS
                         }
                         break;
                     }
+
+                case PromethiumOpcode.FADD: // add a float to a register FADD 1.2 R3
+                    {
+                        // Format: [opcode][float value (4 bytes)][register]
+                        float floatValue = FetchFloat();
+                        byte regIndex = FetchByte();
+
+                        if (regIndex < Registers.GPR.Length)
+                        {
+                            float before = Registers.GPR[regIndex].AsFloat;
+                            Registers.GPR[regIndex].AsFloat += floatValue;
+                            Registers.GPRType[regIndex] = RegisterType.Float;
+                            Console.WriteLine($"[CPU] FADD: Added float {floatValue} to R{regIndex} ({before}) = {Registers.GPR[regIndex].AsFloat}");
+
+                            if (Registers.GPR[regIndex].AsFloat == 0)
+                                Registers.CpuFlag |= CpuFlags.Zero;
+                            else
+                                Registers.CpuFlag &= ~CpuFlags.Zero;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] FADD: Invalid register index {regIndex}");
+                        }
+                        break;
+                    }
+                case PromethiumOpcode.FSUB: // subtract a float from a register FSUB 1.2 R3
+                    {
+                        // Format: [opcode][float value (4 bytes)][register]
+                        float floatValue = FetchFloat();
+                        byte regIndex = FetchByte();
+                        if (regIndex < Registers.GPR.Length)
+                        {
+                            float before = Registers.GPR[regIndex].AsFloat;
+                            Registers.GPR[regIndex].AsFloat -= floatValue;
+                            Registers.GPRType[regIndex] = RegisterType.Float;
+                            Console.WriteLine($"[CPU] FSUB: Subtracted float {floatValue} from R{regIndex} ({before}) = {Registers.GPR[regIndex].AsFloat}");
+                            if (Registers.GPR[regIndex].AsFloat == 0)
+                                Registers.CpuFlag |= CpuFlags.Zero;
+                            else
+                                Registers.CpuFlag &= ~CpuFlags.Zero;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] FSUB: Invalid register index {regIndex}");
+                        }
+                        break;
+                    }
+                case PromethiumOpcode.FMUL: // multiply a float with a register FMUL 1.2 R3
+                    {
+                        // Format: [opcode][float value (4 bytes)][register]
+                        float floatValue = FetchFloat();
+                        byte regIndex = FetchByte();
+                        if (regIndex < Registers.GPR.Length)
+                        {
+                            float before = Registers.GPR[regIndex].AsFloat;
+                            Registers.GPR[regIndex].AsFloat *= floatValue;
+                            Registers.GPRType[regIndex] = RegisterType.Float;
+                            Console.WriteLine($"[CPU] FMUL: Multiplied R{regIndex} ({before}) * {floatValue} = {Registers.GPR[regIndex].AsFloat}");
+                            if (Registers.GPR[regIndex].AsFloat == 0)
+                                Registers.CpuFlag |= CpuFlags.Zero;
+                            else
+                                Registers.CpuFlag &= ~CpuFlags.Zero;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] FMUL: Invalid register index {regIndex}");
+                        }
+                        break;
+                    }
+                case PromethiumOpcode.FDIV: // divide a float by a register FDIV 1.2 R3
+                    {
+                        // Format: [opcode][float value (4 bytes)][register]
+                        float floatValue = FetchFloat();
+                        byte regIndex = FetchByte();
+                        if (regIndex < Registers.GPR.Length)
+                        {
+                            if (floatValue != 0)
+                            {
+                                float before = Registers.GPR[regIndex].AsFloat;
+                                Registers.GPR[regIndex].AsFloat /= floatValue;
+                                Registers.GPRType[regIndex] = RegisterType.Float;
+                                Console.WriteLine($"[CPU] FDIV: Divided R{regIndex} ({before}) / {floatValue} = {Registers.GPR[regIndex].AsFloat}");
+                                if (Registers.GPR[regIndex].AsFloat == 0)
+                                    Registers.CpuFlag |= CpuFlags.Zero;
+                                else
+                                    Registers.CpuFlag &= ~CpuFlags.Zero;
+                            }
+                            else
+                            {
+                                Console.WriteLine("[CPU] FDIV: Division by zero error.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] FDIV: Invalid register index {regIndex}");
+                        }
+                        break;
+                    }
+                case PromethiumOpcode.FMOD: // modulo a float by a register FMOD 1.2 R3
+                    {
+                        // Format: [opcode][float value (4 bytes)][register]
+                        float floatValue = FetchFloat();
+                        byte regIndex = FetchByte();
+                        if (regIndex < Registers.GPR.Length)
+                        {
+                            if (floatValue != 0)
+                            {
+                                float before = Registers.GPR[regIndex].AsFloat;
+                                Registers.GPR[regIndex].AsFloat %= floatValue;
+                                Registers.GPRType[regIndex] = RegisterType.Float;
+                                Console.WriteLine($"[CPU] FMOD: Modulo R{regIndex} ({before}) % {floatValue} = {Registers.GPR[regIndex].AsFloat}");
+                                if (Registers.GPR[regIndex].AsFloat == 0)
+                                    Registers.CpuFlag |= CpuFlags.Zero;
+                                else
+                                    Registers.CpuFlag &= ~CpuFlags.Zero;
+                            }
+                            else
+                            {
+                                Console.WriteLine("[CPU] FMOD: Division by zero error.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] FMOD: Invalid register index {regIndex}");
+                        }
+                        break;
+                    }
+
+                case PromethiumOpcode.DLSTART:
+                    {
+                        byte modelNameLength = FetchByte(); // Fetch the length of the model name.
+                        if (modelNameLength > 0)
+                        {
+                            byte[] modelNameBytes = new byte[modelNameLength];
+                            for (int i = 0; i < modelNameLength; i++)
+                            {
+                                modelNameBytes[i] = FetchByte(); // Fetch each byte of the model name.
+                            }
+                            string modelName = Encoding.ASCII.GetString(modelNameBytes);
+                            Console.WriteLine($"[CPU] DLSTART: Starting display list for model '{modelName}'");
+                            _displayListManager.StartDisplayList(modelName); // Use the instance
+                        }
+                        else
+                        {
+                            Console.WriteLine("[CPU] DLSTART: Invalid model name length (0).");
+                        }
+                        break;
+                    }
+
+                case PromethiumOpcode.DLPRIMITIVE:
+                    {
+                        byte primitiveType = FetchByte();
+                        if (Enum.IsDefined(typeof(PrimitiveType), primitiveType))
+                        {
+                            Console.WriteLine($"[CPU] DLPRIMITIVE: Setting primitive type to {(PrimitiveType)primitiveType}");
+                            _displayListManager.AddPrimitive((PrimitiveType)primitiveType); // Use the instance
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[CPU] DLPRIMITIVE: Invalid primitive type {primitiveType}");
+                        }
+                        break;
+                    }
+
+                case PromethiumOpcode.DLCOLOR:
+                    {
+                        byte r = FetchByte();
+                        byte g = FetchByte();
+                        byte b = FetchByte();
+                        string colorHex = $"{r:X2}{g:X2}{b:X2}";
+                        Console.WriteLine($"[CPU] DLCOLOR: Setting color to #{colorHex}");
+                        _displayListManager.AddColor(colorHex); // Use the instance
+                        break;
+                    }
+
+                case PromethiumOpcode.DLVERTEX:
+                    {
+                        float x = FetchFloat();
+                        float y = FetchFloat();
+                        float z = FetchFloat();
+                        Console.WriteLine($"[CPU] DLVERTEX: Adding vertex ({x}, {y}, {z})");
+                        _displayListManager.AddVertex(x, y, z); // Use the instance
+                        break;
+                    }
+
+                case PromethiumOpcode.DLEND:
+                    {
+                        Console.WriteLine("[CPU] DLEND: Ending the current display list.");
+                        _displayListManager.EndDisplayList(); // Use the instance
+                        break;
+                    }
+
+                case PromethiumOpcode.DLCALL:
+                    {
+                        byte modelNameLength = FetchByte(); // Fetch the length of the model name
+                        if (modelNameLength > 0)
+                        {
+                            byte[] modelNameBytes = new byte[modelNameLength];
+                            for (int i = 0; i < modelNameLength; i++)
+                            {
+                                modelNameBytes[i] = FetchByte(); // Fetch each byte of the model name
+                            }
+                            string modelName = Encoding.ASCII.GetString(modelNameBytes);
+
+                            // Fetch the optional coordinates (default to 0, 0, 0 if not provided)
+                            float x = FetchFloat();
+                            float y = FetchFloat();
+                            float z = FetchFloat();
+
+                            Console.WriteLine($"[CPU] DLCALL: Loading display list '{modelName}' at position ({x}, {y}, {z})");
+
+                            try
+                            {
+                                // Ensure the display list is stored in the DPL memory domain
+                                if (!_displayListManager.SerializeDisplayList(modelName).Any())
+                                {
+                                    _displayListManager.StoreDisplayListToDpl(modelName, Memory, _nextDplAddress); // Store at the next available address
+                                    byte[] serializedData = _displayListManager.SerializeDisplayList(modelName);
+                                    _nextDplAddress += serializedData.Length; // Update the pointer for the next model
+                                }
+
+                                // Optionally copy the serialized display list to the Video memory domain for rendering
+                                byte[] serializedDataForVideo = _displayListManager.SerializeDisplayList(modelName);
+                                for (int i = 0; i < serializedDataForVideo.Length; i++)
+                                {
+                                    Memory.Write(MemoryDomain.Video, i, serializedDataForVideo[i]);
+                                }
+                                Console.WriteLine($"[CPU] DLCALL: Display list '{modelName}' copied to Video memory for rendering.");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[CPU] DLCALL: Error loading display list '{modelName}': {ex.Message}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("[CPU] DLCALL: Invalid model name length (0).");
+                        }
+                        break;
+                    }
+
+
+
+                case PromethiumOpcode.STOREMODEL:
+                    {
+                        byte regIndex = FetchByte(); // Graphics register index
+                        regIndex -= PasmLoader.GeneralRegisterCount; // Adjust for graphics register offset
+                        byte modelNameLength = FetchByte(); // Length of the model name
+
+                        if (modelNameLength > 0 && regIndex < Registers.Graphics.Length)
+                        {
+                            byte[] modelNameBytes = new byte[modelNameLength];
+                            for (int i = 0; i < modelNameLength; i++)
+                            {
+                                modelNameBytes[i] = FetchByte();
+                            }
+                            string modelName = Encoding.ASCII.GetString(modelNameBytes);
+
+                            // Serialize and store the display list in the DPL memory domain
+                            try
+                            {
+                                _displayListManager.StoreDisplayListToDpl(modelName, Memory, _nextDplAddress);
+                                byte[] serializedData = _displayListManager.SerializeDisplayListAs3D(modelName);
+                                _nextDplAddress += serializedData.Length;
+
+
+                                Registers.Graphics[regIndex].AsModel = modelName; // Store the model name in the register
+                                Registers.GraphicsType[regIndex] = RegisterType.Model; // Set the type to Model
+                                Console.WriteLine($"[CPU] STOREMODEL: Stored model '{modelName}' in G{regIndex} and DPL memory.");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[CPU] STOREMODEL: Error storing model '{modelName}': {ex.Message}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("[CPU] STOREMODEL: Invalid model name length or register index.");
+                        }
+                        break;
+                    }
+
+
+
+
+                case PromethiumOpcode.LOADMODEL:
+                    {
+                        byte regIndex = FetchByte(); // Graphics register index
+                        regIndex -= PasmLoader.GeneralRegisterCount; // Adjust for graphics register offset
+
+                        if (regIndex < Registers.Graphics.Length)
+                        {
+                            if (Registers.GraphicsType[regIndex] == RegisterType.Model)
+                            {
+                                string modelName = Registers.Graphics[regIndex].AsModel;
+                                if (!string.IsNullOrEmpty(modelName))
+                                {
+                                    float x = FetchFloat();
+                                    float y = FetchFloat();
+                                    float z = FetchFloat();
+
+                                    Console.WriteLine($"[CPU] LOADMODEL: Loading model '{modelName}' at position ({x}, {y}, {z})");
+
+                                    try
+                                    {
+                                        // Ensure the model exists in the DPL memory domain
+                                        byte[] serializedDataForVideo = _displayListManager.SerializeDisplayListAs3D(modelName);
+                                        for (int i = 0; i < serializedDataForVideo.Length; i++)
+                                        {
+                                            Memory.Write(MemoryDomain.Video, i, serializedDataForVideo[i]);
+                                        }
+                                        {
+                                            Console.WriteLine($"[CPU] LOADMODEL: Model '{modelName}' not found in DPL memory. Attempting to store it.");
+                                            _displayListManager.StoreDisplayListToDpl(modelName, Memory, _nextDplAddress);
+                                            byte[] serializedData = _displayListManager.SerializeDisplayList(modelName);
+                                            _nextDplAddress += serializedData.Length; // Update the pointer for the next model
+                                        }
+
+
+                                        // Render the model using the display list manager
+                                        _displayListManager.CallDisplayList(modelName, x, y, z);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine($"[CPU] LOADMODEL: Error loading model '{modelName}': {ex.Message}");
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"[CPU] LOADMODEL: No model stored in G{regIndex}");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[CPU] LOADMODEL: G{regIndex} does not contain a model.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("[CPU] LOADMODEL: Invalid graphics register index.");
+                        }
+                        break;
+                    }
+
+
+
+
+
 
 
 
