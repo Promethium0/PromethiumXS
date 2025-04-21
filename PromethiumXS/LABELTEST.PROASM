@@ -1,27 +1,95 @@
+﻿; Start of the program
+START:
+    ; Initialize registers
+    LI 0 R0         ; R0 = 0 (Counter)
+    LI 10 R1        ; R1 = 10 (Loop limit)
+    LI 5 R2         ; R2 = 5 (Multiplier)
+    LI 100 R3       ; R3 = 100 (Threshold)
+    LI 0x20 R4      ; R4 = 0x20 (Memory offset)
+    LI 0 R5         ; R5 = 0 (Accumulator)
+    LI 0 R6         ; R6 = 0 (Stack counter)
+    LI 0x40 R7      ; R7 = 0x40 (Another memory offset)
+    JMP INIT_LOOP   ; Jump to initialization loop
 
-MOV 1 R0 ; Move 1 to register R0 (fixes an error)
-DLSTART Cube
-DLPRIMITIVE 1 
-DLCOLOR FFFFFF
-DLVERTEX 0.5 0.5 0.5
-DLVERTEX -0.5 0.5 0.5
-DLVERTEX -0.5 -0.5 0.5
-DLVERTEX 0.5 -0.5 0.5
-DLVERTEX 0.5 0.5 -0.5
-DLVERTEX -0.5 0.5 -0.5
-DLVERTEX -0.5 -0.5 -0.5
-DLVERTEX 0.5 -0.5 -0.5
-DLVERTEX 0.5 0.5 0.5
-DLVERTEX 0.5 -0.5 0.5
-DLVERTEX 0.5 -0.5 -0.5
-DLVERTEX 0.5 0.5 -0.5
-DLVERTEX 0.5 0.5 -0.5
-DLVERTEX -0.5 0.5 -0.5
-DLVERTEX -0.5 0.5 0.5
-DLEND
+; Initialization loop
+INIT_LOOP:
+    ADDI 1 R0       ; Increment R0
+    CMP R0 R1       ; Compare R0 with R1
+    JNZ INIT_LOOP   ; Loop until R0 == R1
 
-; Store the cube model in a register (e.g., R0)
-STOREMODEL G0 Cube
+    ; Reset R0 for the main loop
+    LI 0 R0         
+    JMP MAIN_LOOP   ; Jump to the main loop
 
-; Optionally, call the cube model to render it at a specific position
-LOADMODEL G0 0.0 0.0 0.0 ; Render at (0, 0, 0)
+; Main loop
+MAIN_LOOP:
+    ADDI 1 R0       ; Increment R0
+    MUL R0 R2       ; Multiply R0 by R2
+    CMP R0 R3       ; Compare R0 with the threshold
+    JG END_LOOP     ; If R0 > R3, jump to end loop
+
+    ; Store the result in memory
+    STOREI 1 R4 R0  ; Store R0 at memory offset R4
+    ADDI 4 R4       ; Increment memory offset by 4
+
+    ; Push the current value onto the stack
+    PUSH R0         
+
+    ; Add the value to the accumulator
+    ADD R0 R5       
+    JMP MAIN_LOOP   ; Continue the main loop
+
+; End loop
+END_LOOP:
+    ; Pop all values from the stack and store them in memory
+    LI 0 R6         ; R6 = 0 (Stack counter)
+PRINT_LOOP:
+    POP R7          ; Pop the top value into R7
+    STOREI 1 R7 R6  ; Store the popped value in memory at offset R6
+    ADDI 4 R6       ; Increment memory offset by 4
+    CMP R6 R1       ; Compare stack counter with loop limit
+    JNZ PRINT_LOOP  ; Continue until all values are popped
+
+    ; Test memory load
+    LI 0x20 R4      ; Reset memory offset
+    LOADI 1 R4 R8   ; Load value from memory into R8
+    ADDI 1 R8       ; Increment the loaded value
+    STOREI 1 R4 R8  ; Store the incremented value back into memory
+
+    ; Test arithmetic operations
+    LI 15 R9        ; R9 = 15
+    LI 3 R10        ; R10 = 3
+    DIV R9 R10      ; R9 = R9 / R10
+    ADDI 2 R9       ; R9 = R9 + 2
+    STOREI 1 R7 R9  ; Store the result in memory
+
+    ; Test bitwise operations
+    LI 0xF0 R11     ; R11 = 0xF0
+    LI 0x0F R12     ; R12 = 0x0F
+    AND R11 R12     ; R11 = R11 & R12
+    ORI 0xF0 R12    ; R12 = R12 | 0xF0
+    STOREI 1 R11 R12; Store the result of OR in memory
+
+    ; Test jumps and comparisons
+    LI 50 R13       ; R13 = 50
+    LI 25 R14       ; R14 = 25
+    CMP R13 R14     ; Compare R13 and R14
+    JG GREATER      ; Jump if R13 > R14
+    JL LESS         ; Jump if R13 < R14
+    JE EQUAL        ; Jump if R13 == R14
+
+GREATER:
+    ADDI 1 R13      ; Increment R13
+    JMP DONE        ; Jump to DONE
+
+LESS:
+    SUBI 1 R14      ; Decrement R14
+    JMP DONE        ; Jump to DONE
+
+EQUAL:
+    ADDI 0 R13      ; Do nothing (R13 == R14)
+    JMP DONE        ; Jump to DONE
+
+; Program end
+DONE:
+    HLT             ; Halt the program

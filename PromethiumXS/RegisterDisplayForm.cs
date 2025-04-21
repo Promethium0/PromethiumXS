@@ -20,20 +20,22 @@ namespace PromethiumXS
         private Label lblGfxFlags;
         private Button btnRefresh;
         private Button btnLoadPasm;
+
         private Button btnStart;
-        private DisplayListManager _displayListManager;
+
+
+        private bool _paused = false;
 
 
 
-        private Renderer3D renderer3D;
 
-        public RegisterDisplayForm(PromethiumRegisters registers, Memory memory, Cpu cpu, DisplayListManager displayListManager)
+
+        public RegisterDisplayForm(PromethiumRegisters registers, Memory memory, Cpu cpu)
         {
             _registers = registers;
             _memory = memory;
             _cpu = cpu;
-            _displayListManager = displayListManager;
-
+          
             InitializeComponents();
         }
 
@@ -121,7 +123,18 @@ namespace PromethiumXS
             };
             btnStart.Click += BtnStart_Click;
 
-            
+            // Pause Program button.
+            Button btnPause = new Button
+            {
+                Text = "Pause Program",
+                Location = new Point(270, 440)
+            };
+
+            btnPause.Click += BtnPause_Click;
+
+
+
+
 
             // Add controls to the form.
             this.Controls.Add(dgvGPR);
@@ -131,6 +144,7 @@ namespace PromethiumXS
             this.Controls.Add(btnRefresh);
             this.Controls.Add(btnLoadPasm);
             this.Controls.Add(btnStart);
+            this.Controls.Add(btnPause);
 
             // Initial display.
             RefreshDisplay();
@@ -156,7 +170,7 @@ namespace PromethiumXS
                         // Load the assembled program into System memory.
                         for (int i = 0; i < result.ProgramSize && i < (4 * 1024 * 1024); i++)
                         {
-                            _memory.Domains[MemoryDomain.System][i] = result.ProgramBytes[i];
+                            _memory.Domains[MemoryDomain.SystemCode][i] = result.ProgramBytes[i];
                         }
 
                         // Automatically set ProgramSize.
@@ -180,20 +194,20 @@ namespace PromethiumXS
         {
             btnStart.Enabled = false;
 
-            // Update the instantiation of Renderer3DForm to include the required 'memory' parameter.
-            Renderer3DForm rendererForm = new Renderer3DForm(_displayListManager, _memory);
-            rendererForm.Show();
-
             await System.Threading.Tasks.Task.Run(() =>
             {
                 while (_cpu.Running)
                 {
+                    if (_paused)
+                    {
+                        Thread.Sleep(100); // Wait while paused
+                        continue;
+                    }
+
                     _cpu.Step();
-                    
 
                     // Refresh the display and update the renderer form.
                     this.Invoke(new Action(RefreshDisplay));
-                    rendererForm.Invoke(new Action(rendererForm.Refresh));
                 }
             });
 
@@ -227,5 +241,20 @@ namespace PromethiumXS
             lblCpuFlags.Text = "CPU Flags: " + _registers.CpuFlag.ToString();
             lblGfxFlags.Text = "GFX Flags: " + _registers.GraphicsFlag.ToString();
         }
+
+        private void BtnPause_Click(object sender, EventArgs e)
+        {
+            _paused = !_paused; // Toggle the paused state
+
+            if (_paused)
+            {
+                MessageBox.Show("Program execution paused.", "Pause", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show("Program execution resumed.", "Resume", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
     }
 }

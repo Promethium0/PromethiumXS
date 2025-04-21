@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Text;
+using System.Globalization;
 
 namespace PromethiumXS
 {
@@ -24,15 +25,18 @@ namespace PromethiumXS
             PromethiumRegisters registers = new PromethiumRegisters();
             Memory memory = new Memory();
             Cpu cpu = new Cpu(memory, registers);
+          
 
+            // Set the PDE on the CPU
+          
             // Step 3: Launch the Windows Forms UI on a separate STA thread.
             Thread winFormsThread = new Thread(() =>
             {
                 // Initialize Windows Forms configuration (if any).
                 ApplicationConfiguration.Initialize();
                 // Corrected line: Pass an instance of DisplayListManager instead of the type itself.
-                DisplayListManager displayListManager = new DisplayListManager();
-                Application.Run(new RegisterDisplayForm(registers, memory, cpu, displayListManager));
+                
+                Application.Run(new RegisterDisplayForm(registers, memory, cpu));
                 
             });
             winFormsThread.SetApartmentState(ApartmentState.STA);
@@ -98,9 +102,7 @@ namespace PromethiumXS
                         }
                         break;
 
-                    case "dumpregisters":
-                        registers.Dump();
-                        break;
+                    
 
                     case "resetcpu":
                         cpu.Reset();
@@ -149,12 +151,15 @@ namespace PromethiumXS
                         }
                         break;
 
+                   
+
                     default:
                         Console.WriteLine($"Unknown command: {command}. Type 'help' for a list of commands.");
                         break;
                 }
             }
-        }
+            }
+        
 
 
 
@@ -164,7 +169,7 @@ namespace PromethiumXS
         /// 
         public static void SearchDplMemoryForModel(Memory memory, string modelName)
         {
-            byte[] dplMemory = memory.Domains[MemoryDomain.DPL];
+            byte[] dplMemory = memory.Domains[MemoryDomain.DisplayList];
             byte[] modelNameBytes = Encoding.ASCII.GetBytes(modelName);
 
             for (int i = 0; i <= dplMemory.Length - modelNameBytes.Length; i++)
@@ -245,6 +250,18 @@ namespace PromethiumXS
                 Console.WriteLine($"Error during memory dump: {ex.Message}");
             }
         }
+
+        
+
+        /// <summary>
+        /// Parses a .obj file and extracts vertices and faces.
+        /// </summary>
+        
+
+        /// <summary>
+        /// Generates PASM content from vertices and faces.
+        /// </summary>
+        
 
 
         /// <summary>
